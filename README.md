@@ -40,6 +40,12 @@ Code supporting the paper: "TenniSet: A Dataset for Dense Fine-Grained Event Rec
 ### Configuration Setup
 See `config.py` for the configuration parameters for the project
 
-### Running
-#### Annotator
-The annotator can be used to annotate any video with dense temporal events using a GUI.
+### About
+#### The Annotator
+The annotator can be used to annotate any video with dense temporal events using a GUI. See the README in the annotator directory for more information.
+
+#### The Annotations
+The annotator generates .json files consisting of the following data structure format:
+```json
+
+```

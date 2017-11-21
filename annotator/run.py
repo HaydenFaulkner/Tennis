@@ -356,7 +356,7 @@ class Annotator:
         vid_id = vid_id[len(vid_id)-1]
         vid_id = vid_id[1:]
         vid_id = vid_id.split('.')[0]
-        out_f = open(self.out_file+'AF_'+vid_id+'.json', 'w')
+        out_f = open(self.out_file+'/AF_'+vid_id+'.json', 'w')
         json.dump(self.database, out_f)
         out_f.close()
 
