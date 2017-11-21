@@ -103,13 +103,13 @@ class Annotator:
         vid_id = vid_id[-1]
         vid_id = vid_id.split('.')[0]  # remove the file ext
 
-        if os.path.isfile(self.out_file+'/AF_'+vid_id+'.json'):
-            print('File '+self.out_file+'/AF_'+vid_id+'.json'+' exists. Loading it.')
-            inF = open(self.out_file+'/AF_'+vid_id+'.json', 'r')
+        if os.path.isfile(self.out_file+'/'+vid_id+'.json'):
+            print('File '+self.out_file+'/'+vid_id+'.json'+' exists. Loading it.')
+            inF = open(self.out_file+'/'+vid_id+'.json', 'r')
             self.database = json.load(inF)
             inF.close()
         else:
-            print('File '+self.out_file+'/AF_'+vid_id+'.json'+' does not exist. Will make new database.')
+            print('File '+self.out_file+'/'+vid_id+'.json'+' does not exist. Will make new database.')
             self.database = {'video': self.in_file, 'classes': {'USE': [],'SPLITS': []}}
 
             if len(self.types) > 0:
@@ -356,7 +356,7 @@ class Annotator:
         vid_id = vid_id[len(vid_id)-1]
         vid_id = vid_id[1:]
         vid_id = vid_id.split('.')[0]
-        out_f = open(self.out_file+'/AF_'+vid_id+'.json', 'w')
+        out_f = open(self.out_file+'/'+vid_id+'.json', 'w')
         json.dump(self.database, out_f)
         out_f.close()
 
@@ -1056,7 +1056,7 @@ class Annotator:
             vid_id = vid_id[len(vid_id)-1]
             vid_id = vid_id.split('.')[0]
 
-            out_af = open(self.out_file+'/autosaves/AF_'+vid_id+'_A'+str(self.autosave)+'.json', 'w')
+            out_af = open(self.out_file+'/autosaves/'+vid_id+'_A'+str(self.autosave)+'.json', 'w')
             json.dump(self.database, out_af)
             out_af.close()
             if self.autosave == 1:

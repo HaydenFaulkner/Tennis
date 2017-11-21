@@ -102,6 +102,7 @@ def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squa
     end = max(frames)
 
     for run in range(10):
+        print("Run %d :: Frames to process - %d" % (run, len(frames)))
         while True:
             flag, frame = capture.read()
             if flag == 0:
@@ -109,7 +110,7 @@ def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squa
             if current > end:
                 break
 
-            if current in frames:
+            if current in frames:  # TODO add progress print
                 frame = crop_n_squash(frame, crop=crop, squash=squash)
 
                 cv2.imwrite("%s/%08d.png" % (save_path, current), frame)
@@ -148,20 +149,20 @@ def videos_2_frames(videos_dir, save_dir, slices_dir, fps=None, crop=None, squas
         for v in range(len(videos)):
             print("------------\n%d / %d\n-------------" % (v, len(videos)))
             video_id = videos[v]
-            # video_id = video_id[video_id.rfind('.'):]  # remove extension if there is one
+            video_id = video_id[:video_id.rfind('.')]  # remove extension if there is one
             video_2_frames(video_path=os.path.join(videos_dir, videos[v]),
                            save_path=os.path.join(save_dir, video_id),
-                           slices=load_slice_txt(os.path.join(slices_dir, video_id)),
+                           slices=load_slice_txt(os.path.join(slices_dir, video_id+'.txt')),
                            fps=fps,
                            crop=crop,
                            squash=squash)
     # Given single file
     elif os.path.isfile(videos_dir):
         video_id = videos_dir.split("/")[-1]
-        # video_id = video_id[video_id.rfind('.'):]  # remove extension if there is one
+        video_id = video_id[:video_id.rfind('.')]  # remove extension if there is one
         video_2_frames(video_path=videos_dir,
                        save_path=os.path.join(save_dir, video_id),
-                       slices=load_slice_txt(os.path.join(slices_dir, video_id)),
+                       slices=load_slice_txt(os.path.join(slices_dir, video_id+'.txt')),
                        fps=fps,
                        crop=crop,
                        squash=squash)
