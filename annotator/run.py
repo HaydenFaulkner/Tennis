@@ -1,8 +1,8 @@
-'''
+""""
 Used to annotate temporal events of different classes with particular attributes within a video
 
 Input is a video file and a path to write out the save file
-'''
+"""
 
 from tkinter import *
 from PIL import Image, ImageTk
@@ -15,7 +15,6 @@ import cv2
 
 from config import config
 
-# DRIVE = paths.get_drive()
 
 class Annotator:
     def __init__(self, video_file, type_file, save_path):
@@ -25,7 +24,6 @@ class Annotator:
 
         self.autosave = 1
         self.fps = 30
-        ###############################################
 
         # Check passed paths
         err = False
@@ -37,7 +35,6 @@ class Annotator:
         else:
             err = True
             print("No type file found at: "+self.type_file+"\nPlease check path and try again.")
-
 
         self.cap = cv2.VideoCapture(self.in_file)
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -68,10 +65,10 @@ class Annotator:
         win_h = self.root.winfo_height()
         win_w = self.root.winfo_width()
 
-        self.image_label = Label(master=self.root)# label for the video frame
+        self.image_label = Label(master=self.root)
         self.image_label.pack()
 
-        self.timeline_label = Label(master=self.root)# label for the video frame
+        self.timeline_label = Label(master=self.root)
         self.timeline_label.bind("<ButtonPress-1>", self.mouse_down)
         self.timeline_label.bind("<ButtonRelease-1>", self.mouse_up)
         self.timeline_label.bind("<B1-Motion>", self.mouse_move)
@@ -104,7 +101,7 @@ class Annotator:
 
         vid_id = self.in_file.split('/')
         vid_id = vid_id[-1]
-        vid_id = vid_id.split('.')[0] # remove the file ext
+        vid_id = vid_id.split('.')[0]  # remove the file ext
 
         if os.path.isfile(self.out_file+'/AF_'+vid_id+'.json'):
             print('File '+self.out_file+'/AF_'+vid_id+'.json'+' exists. Loading it.')
@@ -341,12 +338,9 @@ class Annotator:
         self.colours = [(4,174,248),(16,217,4),(240,191,16),(217,48,14),(133,4,248),(16,2,248),(2,217,165),(184,240,14),(217,131,13),(248,2,109)]
         self.highlights = [(151,217,248),(135,217,132),(240,223,158),(217,156,143),(204,151,248),(150,150,248),(131,217,191),(225,240,157),(217,183,142),(248,150,203)]
 
-
-
         # setup the update callback
         self.root.after(self.speed, func=lambda: self.update_all())
         self.root.mainloop()
-
 
         for the_class in self.database['classes']:
             num_del = 0
@@ -362,13 +356,12 @@ class Annotator:
         vid_id = vid_id[len(vid_id)-1]
         vid_id = vid_id[1:]
         vid_id = vid_id.split('.')[0]
-        outF = open(self.out_file+'AF_'+vid_id+'.json', 'w')
-        json.dump(self.database, outF)
-        outF.close()
+        out_f = open(self.out_file+'AF_'+vid_id+'.json', 'w')
+        json.dump(self.database, out_f)
+        out_f.close()
 
     def quit_(self):
         self.root.destroy()
-
 
     def update_timeline(self):
         # Setup Variables
@@ -377,9 +370,9 @@ class Annotator:
         win_h = self.root.winfo_height()
         win_w = self.root.winfo_width()
         d_h = int((win_h-100)-(.6*win_h))
-        d_w = int(max((win_w-20),(self.zoom*((self.total_frames/25)/60))))
+        d_w = int(max((win_w-20), (self.zoom*((self.total_frames/25)/60))))
 
-        each_line_h = int((d_h-50)/max((len(self.database['classes'])-2)*1.0,1.0))
+        each_line_h = int((d_h-50)/max((len(self.database['classes'])-2)*1.0, 1.0))
 
         # Do logic first then Draw
         # a sequence has been started keep updating the end point (refresh_some should be T)
@@ -415,10 +408,7 @@ class Annotator:
                         inner_index += 1
                     outer_index += 1
 
-
         # a click has occurred
-
-
         if self.clicked_flag == 1:
             self.update_data()
             found_flag = 0
@@ -436,7 +426,7 @@ class Annotator:
                 self.refresh_all = True # change later
 
             # if scrollbar
-            elif (cy < 11):
+            elif cy < 11:
                 # if on actual scrollbar
                 if (cx > int(self.start_crop/d_w)) and (cx < int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))):
                     bar_width = int((win_w-20)*((win_w-20)/(1.0*d_w)))
@@ -459,7 +449,8 @@ class Annotator:
                         if the_class == 'USE' or the_class == 'SPLITS':
                             continue
                         else:
-                            if (cy > (30 + outer_index*each_line_h + 5)) and (cy < (30+(outer_index+1)*each_line_h - 5)):
+                            if (cy > (30 + outer_index*each_line_h + 5)) and \
+                                    (cy < (30+(outer_index+1)*each_line_h - 5)):
                                 self.selected_class = the_class
                                 break
                             outer_index += 1
@@ -468,12 +459,9 @@ class Annotator:
                 inner_index = 0
 
                 adj_cx = self.click_event.x+self.start_crop
-                for i in range(0, len(self.database['classes'][self.selected_class])): # could use reverse dict to find index instead
+                for i in range(0, len(self.database['classes'][self.selected_class])):
                     start_frame = self.database['classes'][self.selected_class][i]['start']
                     end_frame = self.database['classes'][self.selected_class][i]['end']
-
-                    # if the_class == 'Hit' and database['classes'][the_class][i]['name'] == '0309':
-                    #     self.database['classes'][the_class][i]['end'] = self.database['classes'][the_class][i]['end'] + 30
 
                     if (adj_cx > (d_w*start_frame/self.total_frames)) and (adj_cx < (d_w*end_frame/self.total_frames)):
                         self.selected_index = i
@@ -495,12 +483,11 @@ class Annotator:
             else:
                 self.selected_flag = 1
 
-            self.refresh_all = True #change later
+            self.refresh_all = True
             self.update_labels()
 
         # COMPLETELY REDRAW
-        if self.refresh_all:
-        # repaint entire timeline
+        if self.refresh_all:  # repaint entire timeline
             self.display = np.zeros((d_h, d_w, 3))
             self.display = self.display.astype('uint8')
             self.display[:] = 50
@@ -514,8 +501,8 @@ class Annotator:
                 elif self.selected_class == the_class:
                     self.display[(30 + outer_index*each_line_h):(30+(outer_index+1)*each_line_h)] = 75
 
-                self.display[30+(outer_index)*each_line_h-1:30+(outer_index)*each_line_h+1] = 100 ########## was just outer_index
-                self.display[d_h-21:d_h-19] = 200 ########## was just outer_index
+                self.display[30+outer_index*each_line_h-1:30+outer_index*each_line_h+1] = 100
+                self.display[d_h-21:d_h-19] = 200
 
                 outer_index += 1
 
@@ -527,7 +514,7 @@ class Annotator:
                 if the_class == 'USE':
                     pos_n = d_h-20
                     pos_s = d_h-10
-                    self.display[pos_n:pos_s,: , :] = (130,0,0)
+                    self.display[pos_n:pos_s, :, :] = (130,0,0)
                     for i in range(0, len(self.database['classes'][the_class])):
                         start_frame = self.database['classes'][the_class][i]['start']
                         end_frame = self.database['classes'][the_class][i]['end']
@@ -535,12 +522,12 @@ class Annotator:
                         pos_e = int(d_w*end_frame/self.total_frames)
 
                         if (self.selected_flag == 1) & (self.selected_class == the_class) & (self.selected_index == i):
-                            self.display[pos_n:pos_s, pos_w:pos_e, :] = (0,230,0)
+                            self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 230, 0)
                         else:
-                            self.display[pos_n:pos_s, pos_w:pos_e, :] = (0,130,0)
+                            self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 130, 0)
 
-                        self.display[10:d_h-20, pos_w-1:pos_w, :] = (250,0,0)
-                        self.display[10:d_h-20, pos_e:pos_e+1, :] = (250,0,0)
+                        self.display[10:d_h-20, pos_w-1:pos_w, :] = (250, 0, 0)
+                        self.display[10:d_h-20, pos_e:pos_e+1, :] = (250, 0, 0)
                         inner_index += 1
 
                 elif the_class == 'SPLITS':
@@ -554,22 +541,22 @@ class Annotator:
 
                         if (self.selected_flag == 1) & (self.selected_class == the_class) & (self.selected_index == i):
                             if self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Train':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0,190,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 190, 0)
                             elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Val':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (190,190,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (190, 190, 0)
                             elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Test':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (190,0,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (190, 0, 0)
                             else:
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (40,40,40)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (40, 40, 40)
                         else:
                             if self.database['classes'][the_class][i]['custom']['Type'] == 'Train':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0,130,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 130, 0)
                             elif self.database['classes'][the_class][i]['custom']['Type'] == 'Val':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (130,130,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (130, 130, 0)
                             elif self.database['classes'][the_class][i]['custom']['Type'] == 'Test':
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (130,0,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (130, 0, 0)
                             else:
-                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0,0,0)
+                                self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 0, 0)
 
                         inner_index += 1
                 else:
@@ -590,9 +577,6 @@ class Annotator:
                         inner_index += 1
                     outer_index += 1
 
-        #if refresh_some:
-
-
             # these 4 fors are a bottleneck
             for i in range(0, d_w, int(self.zoom/2.0)):
                 for j in range(10, d_h, 4):
@@ -607,37 +591,19 @@ class Annotator:
             self.display[d_h-10:d_h-9, :] = 200
 
         self.display[d_h-10:d_h, :int(d_w*self.current_frame/self.total_frames), :] = 200  # prog bar
-        # if not self.refresh_all:
-        #     print 'j'
-        #     print np.shape(past_slit)
-        #     print past_slit[:20]
-        #
-        #     self.display[:, int(d_w*current_frame/total_frames)-1:int(d_w*current_frame/total_frames), :] = copy.deepcopy(past_slit)  # prog bar
-        # print '-------'
-        # print self.display[:20, int(d_w*current_frame/total_frames):int(d_w*current_frame/total_frames)+1, :]
-        # print '-------'
-        # past_slit = copy.deepcopy(self.display[:, int(d_w*current_frame/total_frames):int(d_w*current_frame/total_frames)+1, :])
-        # # past_slit = []
-        # # past_slit.extend(self.display[:, (d_w*current_frame/total_frames):(d_w*current_frame/total_frames)+1, :])
-        # print past_slit[:20]
-        # #self.display[:, int(d_w*current_frame/total_frames):int(d_w*current_frame/total_frames)+1, :] = 100
-        # if not self.refresh_all:
-        #     self.display[:, int(d_w*current_frame/total_frames)+100:int(d_w*current_frame/total_frames)+110, :] = 28  # prog bar
-        # print past_slit[:20]
 
-        display_cropped = self.display[:,int(self.start_crop):int((self.start_crop+int(win_w-20))),:]
+        display_cropped = self.display[:, int(self.start_crop):int((self.start_crop+int(win_w-20))), :]
         display_cropped[0:10, :] = 50
         display_cropped[9:10, :] = 200
-        display_cropped[0:10, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:] = 200  # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0),:]=50 # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))-2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0),:]=50 # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0),:]=50 # scroll bar
+        display_cropped[0:10, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))), :] = 200  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))-2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
         for i in range(0, 5):
-            display_cropped[0:5-i, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i),:] = 50
-            display_cropped[4+i:9, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i),:] = 50
-            display_cropped[0:5-i, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:]=50
-            display_cropped[4+i:9, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:]=50
-
+            display_cropped[0:5-i, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i), :] = 50
+            display_cropped[4+i:9, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i), :] = 50
+            display_cropped[0:5-i, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:] = 50
+            display_cropped[4+i:9, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:] = 50
 
         a = Image.fromarray(display_cropped)
 
@@ -655,17 +621,17 @@ class Annotator:
     def update_labels(self):
 
         self.class_name_label.configure(state='normal')
-        self.class_name_label.delete(1.0,END)
-        self.class_name_label.insert(CURRENT,self.selected_class)
+        self.class_name_label.delete(1.0, END)
+        self.class_name_label.insert(CURRENT, self.selected_class)
 
         self.index_name_label.configure(state='normal')
-        self.index_name_label.delete(1.0,END)
+        self.index_name_label.delete(1.0, END)
         self.index_start_label.configure(state='normal')
-        self.index_start_label.delete(1.0,END)
+        self.index_start_label.delete(1.0, END)
         self.index_end_label.configure(state='normal')
-        self.index_end_label.delete(1.0,END)
+        self.index_end_label.delete(1.0, END)
         self.index_desc_label.configure(state='normal')
-        self.index_desc_label.delete(1.0,END)
+        self.index_desc_label.delete(1.0, END)
 
         for key in self.dynamic_labels.keys():
             self.dynamic_labels[key].destroy()
@@ -677,8 +643,8 @@ class Annotator:
             self.dynamic_label_buts[key].destroy()
 
         self.dynamic_labels = {}
-        dynamic_label_titles = {}
-        dynamic_label_buts = {}
+        self.dynamic_label_titles = {}
+        self.dynamic_label_buts = {}
 
         if self.selected_flag > 0:
 
@@ -706,8 +672,8 @@ class Annotator:
                 self.dynamic_labels[key].configure(relief=FLAT)
                 self.dynamic_labels[key].config(highlightbackground='#505050')
                 self.dynamic_labels[key].configure(state='normal')
-                self.dynamic_labels[key].delete(1.0,END)
-                self.dynamic_labels[key].insert(CURRENT,self.cust[key])
+                self.dynamic_labels[key].delete(1.0, END)
+                self.dynamic_labels[key].insert(CURRENT, self.cust[key])
 
                 self.dynamic_label_buts[key] = Button(self.stats_label, command=lambda key=key: self.del_custom(key))
                 self.dynamic_label_buts[key].place(x=320, y=(251+(i*30)), height=22, width=22)
@@ -737,7 +703,6 @@ class Annotator:
 
             self.stats_label.pack()
 
-
     def update_data(self):
 
         if (self.selected_class is not None) & (self.selected_class != ''):
@@ -752,7 +717,6 @@ class Annotator:
                 for key in self.cust:
                     self.cust[key] = str(self.dynamic_labels[key].get(1.0, END)).replace('\n', '')
 
-
     def del_custom(self, key):
         self.update_data()
         if (self.selected_class is not None) & (self.selected_class != '') & (self.selected_class != 'SPLITS'):
@@ -760,7 +724,6 @@ class Annotator:
                 self.database['classes'][self.selected_class][self.selected_index]['custom'].pop(key, None)
 
         self.update_labels()
-
 
     def add_custom(self, key):
         self.update_data()
@@ -770,11 +733,9 @@ class Annotator:
 
         self.update_labels()
 
-
     def add_class(self):
         self.refresh_all = True
         self.database['classes']['New_Class'] = []
-
 
     def del_class(self):
         self.refresh_all = True
@@ -784,7 +745,6 @@ class Annotator:
             self.selected_flag = 0
             self.update_labels()
 
-
     def del_seq(self):
         self.refresh_all = True
         if (self.selected_class is not None) & (self.selected_class != '') & (self.selected_index is not None) & (self.selected_index != ''):
@@ -792,7 +752,6 @@ class Annotator:
             self.selected_flag = 0
             self.selected_index = None
             self.update_labels()
-
 
     def start_seq(self):
         self.refresh_all = True
@@ -803,13 +762,13 @@ class Annotator:
                     self.database['classes'][self.selected_class][self.selected_index]['start'] = self.current_frame
                 else:
                     taken_names = []
-                    for i in range(0, len(self.database['classes'][self.selected_class])): # could use reverse dict to find index instead
+                    for i in range(0, len(self.database['classes'][self.selected_class])):
                         taken_names.append(self.database['classes'][self.selected_class][i]['name'])
 
                     new_name = 'error'
-                    for i in range(1,1000000): #shouldnt have more than this many events in a class per video... its just out of hand
-                        if "%04d" % (i) not in taken_names:
-                            new_name = "%04d" % (i)
+                    for i in range(1,1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
+                        if "%04d" % i not in taken_names:
+                            new_name = "%04d" % i
                             break
 
                     if self.selected_class == 'SPLITS':
@@ -817,9 +776,9 @@ class Annotator:
                     else:
                         self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {}})
                         if len(self.types) > 0:
-                            for the_class in self.types: # check all classes
-                                if len(the_class) > 1: # if has attributes
-                                    if self.selected_class == the_class[0]: # and if is selected
+                            for the_class in self.types:  # check all classes
+                                if len(the_class) > 1:  # if has attributes
+                                    if self.selected_class == the_class[0]:  # and if is selected
                                         attr = the_class[1].split(",")
                                         for the_attr in attr:
                                             self.database['classes'][self.selected_class][len(self.database['classes'][self.selected_class])-1]['custom'][str(the_attr).replace('\n', '')] = ''
@@ -835,13 +794,13 @@ class Annotator:
                     self.selected_index_end = int(self.current_frame)+1
             else:
                 taken_names = []
-                for i in range(0, len(self.database['classes'][self.selected_class])): # could use reverse dict to find index instead
+                for i in range(0, len(self.database['classes'][self.selected_class])):
                     taken_names.append(self.database['classes'][self.selected_class][i]['name'])
 
                 new_name = 'error'
-                for i in range(1,1000000): #shouldnt have more than this many events in a class per video... its just out of hand
-                    if "%04d" % (i) not in taken_names:
-                        new_name = "%04d" % (i)
+                for i in range(1,1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
+                    if "%04d" % i not in taken_names:
+                        new_name = "%04d" % i
                         break
 
                 if self.selected_class == 'SPLITS':
@@ -849,9 +808,9 @@ class Annotator:
                 else:
                     self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {}})
                     if len(self.types) > 0:
-                        for the_class in self.types: # check all classes
-                            if len(the_class) > 1: # if has attributes
-                                if self.selected_class == the_class[0]: # and if is selected
+                        for the_class in self.types:  # check all classes
+                            if len(the_class) > 1:  # if has attributes
+                                if self.selected_class == the_class[0]:  # and if is selected
                                     attr = the_class[1].split(",")
                                     for the_attr in attr:
                                         self.database['classes'][self.selected_class][len(self.database['classes'][self.selected_class])-1]['custom'][str(the_attr).replace('\n', '')] = ''
@@ -868,9 +827,7 @@ class Annotator:
 
             self.update_labels()
 
-
     def end_seq(self):
-
         self.refresh_all = True
         if (self.selected_class is not None) & (self.selected_class != '') & (self.selected_flag == 1):
             if self.current_frame > self.database['classes'][self.selected_class][self.selected_index]['start']:
@@ -878,9 +835,7 @@ class Annotator:
                 self.started_seq_flag = 0
                 self.update_labels()
 
-
     def update_image(self):
-
         if self.play_pause_flag>0:
             (readsuccessful, f) = self.cap.read()
             if (readsuccessful == 'False') | (f is None):
@@ -926,7 +881,7 @@ class Annotator:
 
                 (readsuccessful, f) = self.cap.read()
                 if (readsuccessful == 'False') | (f is None):
-                    f=self.past_f
+                    f = self.past_f
                 else:
                     self.past_f = f
                     self.current_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
@@ -946,16 +901,16 @@ class Annotator:
         r_i_h = 15
 
         if win_w>1:
-            r_i_w = min(int(win_w-380),int(.6*win_h*(1.0*orig_i_w/orig_i_h)))
-            r_i_h = min(int(.6*win_h),int((win_w-380)*(1.0*orig_i_h/orig_i_w)))
-            f=cv2.resize(f,(r_i_w,r_i_h))
+            r_i_w = min(int(win_w-380), int(.6*win_h*(1.0*orig_i_w/orig_i_h)))
+            r_i_h = min(int(.6*win_h), int((win_w-380)*(1.0*orig_i_h/orig_i_w)))
+            f=cv2.resize(f, (r_i_w, r_i_h))
         gray_im = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
         a = Image.fromarray(gray_im)
         # a = a.resize((int(.6*win_w),int(.6*win_w*(1.0*orig_i_h/orig_i_w))), Image.ANTIALIAS) #do in gui, takes too long and errors at points
 
         b = ImageTk.PhotoImage(image=a)
         self.image_label.configure(image=b)
-        self.image_label.place(x=max(10,int(((win_w-380)-r_i_w)/2.0)), y=max(10,int(((win_h*.6)-r_i_h)/2.0))) # keep in middle
+        self.image_label.place(x=max(10,int(((win_w-380)-r_i_w)/2.0)), y=max(10,int(((win_h*.6)-r_i_h)/2.0)))  # keep in middle
 
         self.image_label._image_cache = b  # avoid garbage collection
         self.root.update()
@@ -974,17 +929,17 @@ class Annotator:
     def _on_mousewheel(self, event):
         print(event.delta)
 
-    def leftKey(self, event):
+    def leftKey(self):
         self.speed = min(100,int(self.speed*2.0))
 
-    def rightKey(self, event):
+    def rightKey(self):
         self.speed = max(1,int(self.speed/2.0))
 
-    def upKey(self, event):
+    def upKey(self):
         self.zoom = int(self.zoom*1.5) # the larger the more zoomed in the timeline
         self.refresh_all = True
 
-    def downKey(self, event):
+    def downKey(self):
         self.zoom = int(self.zoom/1.5) # the larger the more zoomed in the timeline
         self.refresh_all = True
 
@@ -998,11 +953,11 @@ class Annotator:
         elif event.keysym == 'F2':
             self.end_seq()
         elif event.keysym == 'F5':
-            if self.play_pause_flag>0:
-                self.play_pause_flag=0
+            if self.play_pause_flag > 0:
+                self.play_pause_flag = 0
                 self.play_pause.configure(text='PLAY')
             else:
-                self.play_pause_flag=1
+                self.play_pause_flag = 1
                 self.play_pause.configure(text='PAUSE')
 
     def update_stats(self):
@@ -1069,7 +1024,7 @@ class Annotator:
         #     print("Error: update_all() ; %s" % e)
         #     return
 
-        self.time_label.configure(text='%02d:%02d:%02d.%02d | %02d:%02d:%02d.%02d' % (int(((self.current_frame/self.fps)/60)/60),int(((self.current_frame/self.fps)/60)%60),int((self.current_frame/self.fps)%60),int((self.current_frame%self.fps)),int(((self.total_frames/self.fps)/60)/60),int(((self.total_frames/self.fps)/60)%60),int((self.total_frames/self.fps)%60),int((self.total_frames%self.fps))))
+        self.time_label.configure(text='%02d:%02d:%02d.%02d | %02d:%02d:%02d.%02d' % (int(((self.current_frame/self.fps)/60)/60), int(((self.current_frame/self.fps)/60)%60),int((self.current_frame/self.fps)%60),int((self.current_frame%self.fps)),int(((self.total_frames/self.fps)/60)/60),int(((self.total_frames/self.fps)/60)%60),int((self.total_frames/self.fps)%60),int((self.total_frames%self.fps))))
         self.time_label.place(x=win_w-210, y=15, height=30, width=180)
         self.time_label.configure(justify=RIGHT)
 
@@ -1101,9 +1056,9 @@ class Annotator:
             vid_id = vid_id[len(vid_id)-1]
             vid_id = vid_id.split('.')[0]
 
-            outAF = open(self.out_file+'/autosaves/AF_'+vid_id+'_A'+str(self.autosave)+'.json', 'w')
-            json.dump(self.database, outAF)
-            outAF.close()
+            out_af = open(self.out_file+'/autosaves/AF_'+vid_id+'_A'+str(self.autosave)+'.json', 'w')
+            json.dump(self.database, out_af)
+            out_af.close()
             if self.autosave == 1:
                 self.autosave = 2
             else:
@@ -1113,8 +1068,7 @@ class Annotator:
         try:
             self.root.after(self.speed, func=lambda: self.update_all())
         except Exception as e:
-            print("Error: root.after() ; %s" % (e))
-
+            print("Error: root.after() ; %s" % e)
 
 
 if __name__ == "__main__":
