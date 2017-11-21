@@ -17,6 +17,7 @@ config.directories.root = '/media/hayden/Storage21/Tennis/'
 config.directories.videos = os.path.join(config.directories.root, 'data', 'videos')
 config.directories.frames = os.path.join(config.directories.root, 'data', 'frames')
 config.directories.annotations = os.path.join(config.directories.root, 'data', 'annotations')
+config.directories.slices = os.path.join(config.directories.root, 'data', 'slices')
 
 
 # Annotator defaults
