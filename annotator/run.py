@@ -1,4 +1,4 @@
-""""
+"""
 Used to annotate temporal events of different classes with particular attributes within a video
 
 Input is a video file and a path to write out the save file

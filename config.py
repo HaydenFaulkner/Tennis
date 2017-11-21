@@ -12,10 +12,10 @@ config = edict()
 # Paths of directories that store the data
 config.directories = edict()
 
-# config.directories.main = '~/Tennis/' TODO: put this line back before final release
-config.directories.main = '/media/hayden/Storage21/Tennis/'
-config.directories.videos = os.path.join(config.directories.main, 'data', 'videos')
-config.directories.annotations = os.path.join(config.directories.main, 'data', 'annotations')
+# config.directories.root = '~/Tennis/' TODO: put this line back before final release
+config.directories.root = '/media/hayden/Storage21/Tennis/'
+config.directories.videos = os.path.join(config.directories.root, 'data', 'videos')
+config.directories.annotations = os.path.join(config.directories.root, 'data', 'annotations')
 
 
 # Annotator defaults
