@@ -28,8 +28,8 @@ config.annotator.classes_file = 'classes.txt'  # must appear in config.directori
 # Processing defaults
 config.frames = edict()
 
-config.frames.fps = None  # when none will do all frames
-config.frames.crop = []
-config.frames.squash = []
+config.frames.fps = None  # when None will do all frames
+config.frames.crop = [1200, 700]
+config.frames.squash = [512, 512]
 
 
