@@ -11,10 +11,10 @@ from config import config
 
 def jsons_2_txts(annotation_dir, slices_dir, files=None):
     if files is None:
-        files = [f for f in os.path.listdir(annotation_dir) if f.endswith(".json") and os.path.isfile(os.path.join(annotation_dir, f))]
+        files = [f for f in os.listdir(annotation_dir) if f.endswith(".json") and os.path.isfile(os.path.join(annotation_dir, f))]
     for file in files:
         json_2_txt(annotation_path=os.path.join(annotation_dir, file),
-                   slices_path=os.path.join(slices_dir, file[:file.rfind(".")], ".txt"))
+                   slices_path=os.path.join(slices_dir, file[:file.rfind(".")]+".txt"))
 
 
 def json_2_txt(annotation_path, slices_path):

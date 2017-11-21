@@ -22,7 +22,7 @@ def frames_2_video(frames_dir, save_path, fps=25):
         except OSError:
             pass
 
-    files = [f for f in os.path.listdir(frames_dir) if f.endswith('.png') and os.path.isfile(os.path.join(frames_dir,f))]
+    files = [f for f in os.listdir(frames_dir) if f.endswith('.png') and os.path.isfile(os.path.join(frames_dir,f))]
 
     if len(files) > 0:
         # get first file to check frame size
