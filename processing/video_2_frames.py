@@ -104,7 +104,7 @@ def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squa
     for run in range(10):
         print("Run %d :: Frames to process - %d" % (run, len(frames)))
         while True:
-            flag, frame = capture.read()
+            flag, frame = capture.read()  # TODO add speedup by jumping to min(frames) have to be certain it's correct though
             if flag == 0:
                 break
             if current > end:
