@@ -36,6 +36,7 @@ class Annotator:
             err = True
             print("No type file found at: "+self.type_file+"\nPlease check path and try again.")
 
+
         self.cap = cv2.VideoCapture(self.in_file)
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if not os.path.isfile(self.in_file):
@@ -352,23 +353,32 @@ class Annotator:
                     print('Deleted ' + self.database['classes'][the_class][i]['name'])
                     del self.database['classes'][the_class][i]
 
+        self.save()
+
+    def save(self):
         vid_id = self.in_file.split('/')
         vid_id = vid_id[len(vid_id)-1]
-        vid_id = vid_id[1:]
+        # vid_id = vid_id[1:]
         vid_id = vid_id.split('.')[0]
+        # print('SAVING:    '+self.out_file+'/'+vid_id+'.json')
         out_f = open(self.out_file+'/'+vid_id+'.json', 'w')
         json.dump(self.database, out_f)
         out_f.close()
 
+
     def quit_(self):
+        self.save()
         self.root.destroy()
 
     def update_timeline(self):
         # Setup Variables
         currentframe = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
-
-        win_h = self.root.winfo_height()
-        win_w = self.root.winfo_width()
+        try:
+            win_h = self.root.winfo_height()
+            win_w = self.root.winfo_width()
+        except Exception:
+            self.save()
+            return
         d_h = int((win_h-100)-(.6*win_h))
         d_w = int(max((win_w-20), (self.zoom*((self.total_frames/25)/60))))
 
@@ -617,7 +627,6 @@ class Annotator:
         self.refresh_all = False
         self.root.update()
 
-
     def update_labels(self):
 
         self.class_name_label.configure(state='normal')
@@ -703,6 +712,8 @@ class Annotator:
 
             self.stats_label.pack()
 
+        self.save()
+
     def update_data(self):
 
         if (self.selected_class is not None) & (self.selected_class != ''):
@@ -716,6 +727,8 @@ class Annotator:
                 self.cust = self.database['classes'][self.selected_class][self.selected_index]['custom']
                 for key in self.cust:
                     self.cust[key] = str(self.dynamic_labels[key].get(1.0, END)).replace('\n', '')
+
+        self.save()
 
     def del_custom(self, key):
         self.update_data()
@@ -739,7 +752,7 @@ class Annotator:
 
     def del_class(self):
         self.refresh_all = True
-        if (self.selected_class is not None) & (self.selected_class != ''):# & (self.selected_class != 'SPLITS'):
+        if (self.selected_class is not None) & (self.selected_class != ''):  # & (self.selected_class != 'SPLITS'):
             print(self.selected_class)
             self.database['classes'].pop(self.selected_class, None)
             self.selected_flag = 0
@@ -798,7 +811,7 @@ class Annotator:
                     taken_names.append(self.database['classes'][self.selected_class][i]['name'])
 
                 new_name = 'error'
-                for i in range(1,1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
+                for i in range(1, 1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
                     if "%04d" % i not in taken_names:
                         new_name = "%04d" % i
                         break
@@ -961,13 +974,21 @@ class Annotator:
                 self.play_pause.configure(text='PAUSE')
 
     def update_stats(self):
-        win_h = self.root.winfo_height()
-        win_w = self.root.winfo_width()
+        try:
+            win_h = self.root.winfo_height()
+            win_w = self.root.winfo_width()
+        except Exception:
+            self.save()
+            return
         self.stats_label.place(x=win_w-360, y=10, height=int(.6*win_h), width=350)
 
     def update_tools(self):
-        win_h = self.root.winfo_height()
-        win_w = self.root.winfo_width()
+        try:
+            win_h = self.root.winfo_height()
+            win_w = self.root.winfo_width()
+        except Exception:
+            self.save()
+            return
         self.tools_label.place(x=10, y=win_h-70, height=60, width=win_w-20)
 
     def play(self):
@@ -1003,6 +1024,8 @@ class Annotator:
             self.step_for_flag = 1
 
     def update_all(self):
+
+        # self.save()
         # print 'Starting update'
         # start_inner = time.clock()
         # latest = start_inner
@@ -1015,9 +1038,12 @@ class Annotator:
         self.update_timeline()
         self.update_stats()
         self.update_tools()
-
-        win_h = self.root.winfo_height()
-        win_w = self.root.winfo_width()
+        try:
+            win_h = self.root.winfo_height()
+            win_w = self.root.winfo_width()
+        except Exception:
+            self.save()
+            return
 
         # except Exception as e:
         #
