@@ -25,6 +25,7 @@ config.annotator = edict()
 
 config.annotator.video_file = 'V007.mp4'  # must appear in config.directories.videos directory
 config.annotator.classes_file = 'classes.txt'  # must appear in config.directories.annotations directory
+config.annotator.hander = [['Federer', 'Williams', 'Sharapova', 'Djokovic', 'Tsonga', 'Zvonareva', 'Del Potro', 'Azarenka'], ['Nadal']]  # [RIGHT,LEFT]
 
 # Processing defaults
 config.frames = edict()
