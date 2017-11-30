@@ -1,6 +1,7 @@
 # Tennis
-Code supporting the paper: "TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"
+Code supporting the paper: ["TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"](http://hf.id.au/papers/DICTA17_Tennis.pdf)
 
+### Note: This repository isn't quite complete. Will be completed over next couple of weeks.
 ## Prerequisites
 - Linux or macOS
 - Python 2 or 3
@@ -38,14 +39,25 @@ Code supporting the paper: "TenniSet: A Dataset for Dense Fine-Grained Event Rec
         ```
         
 ### Configuration Setup
-See `config.py` for the configuration parameters for the project
+See `config.py` for the configuration parameters for the project, including default directory structure and path settings.
 
-### About
-#### The Annotator
+### The Data
+The main data can be downloaded from \[[link coming soon]()\] (Google Drive share) \[ GB\]
+
+Within this Drive share you can also just download the annotations \[ MB\] or videos \[ GB\] or the frames \[ GB\].
+
+## About
+### The Annotator
 The annotator can be used to annotate any video with dense temporal events using a GUI. See the README in the annotator directory for more information.
 
-#### The Annotations
-The annotator generates .json files consisting of the following data structure format:
-```json
+### The Data Processing
+There are a number of processing files to extract and convert data. Descriptions of each files purpose can be found in the file header.
 
-```
+### The Models
+More information on the models can be found in the README in the models directory.
+
+### Evalutations
+...
+
+### Visualisations
+...
