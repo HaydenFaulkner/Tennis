@@ -42,9 +42,22 @@ Code supporting the paper: ["TenniSet: A Dataset for Dense Fine-Grained Event Re
 See `config.py` for the configuration parameters for the project, including default directory structure and path settings.
 
 ### The Data
-The main data can be downloaded from \[[link coming soon]()\] (Google Drive share) \[ GB\]
+The main data can be downloaded from Google Drive, the directory structure should be organised as follows:
+```bash
+/Tennis/
+/Tennis/data/
+/Tennis/data/videos/
+/Tennis/data/annotations/
+...
+/Tennis/models
+etc.
+```
 
-Within this Drive share you can also just download the annotations \[ MB\] or videos \[ GB\] or the frames \[ GB\].
+You can download each of the sub-directories here:
+- [``videos``](https://drive.google.com/open?id=1O55GYUC93vIerrRQDxfI_e6ECoAVy03j) \[11.1 GB\]
+- [``annotations``]() (coming soon) \[ MB\]
+- [``frames``]() (coming soon) \[ GB\] (can be made using videos and code rather than downloaded)
+- [``commentary``]() (coming soon) \[ MB\]
 
 ## About
 ### The Annotator
