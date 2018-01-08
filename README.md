@@ -54,10 +54,10 @@ etc.
 ```
 
 You can download each of the sub-directories here:
+- [``annotations``, ``commentary``, ``slices``, ``splits``](https://drive.google.com/open?id=1g8D2rS-6O9L0G540VlLeSe2iBj6S_hpA) \[2.8 MB\]
 - [``videos``](https://drive.google.com/open?id=1O55GYUC93vIerrRQDxfI_e6ECoAVy03j) \[11.1 GB\]
-- [``annotations``]() (coming soon) \[ MB\]
-- [``frames``]() (coming soon) \[ GB\] (can be made using videos and code rather than downloaded)
-- [``commentary``]() (coming soon) \[ MB\]
+- [``frames``]() (coming soon) \[? GB\] (can be made using videos and code rather than downloaded)
+
 
 ## About
 ### The Annotator
