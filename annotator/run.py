@@ -4,55 +4,54 @@ Used to annotate temporal events of different classes with particular attributes
 Input is a video file and a path to write out the save file
 """
 
-from tkinter import *
-from PIL import Image, ImageTk
-import numpy as np
-import json
-import os.path
-import time
-import argparse
+from absl import app, flags, logging
+from absl.flags import FLAGS
 import cv2
+import json
+import numpy as np
+import os.path
+from PIL import Image, ImageTk
+import time
+from tkinter import Tk, Label, Frame, GROOVE, Text, FLAT, END, Button, RIGHT, CURRENT
 
-from config import config
+flags.DEFINE_string('video_file', 'data/videos/test.mp4',
+                    'Path to the video file to annotate.')
+flags.DEFINE_string('type_file', 'data/annotations/classes.txt',
+                    'Path to the classes type .txt file.')
+flags.DEFINE_string('save_path', 'data/annotations',
+                    'Directory to save the .json output.')
 
 
 class Annotator:
     def __init__(self, video_file, type_file, save_path):
-        self.in_file = video_file
-        self.type_file = type_file
-        self.out_file = save_path
+        self.in_file = os.path.normpath(video_file)  # make the paths OS (Windows) compatible
+        self.type_file = os.path.normpath(type_file)  # make the paths OS (Windows) compatible
+        self.out_file = os.path.normpath(save_path)  # make the paths OS (Windows) compatible
 
-        self.autosave = 1
-        self.fps = 30
+        self.autosave = 1  # set autosave flag
+        self.fps = 30  # set fps
 
-        # Check passed paths
-        err = False
-
+        # load the types .txt file
         if os.path.exists(self.type_file):
             with open(self.type_file) as f:
                 types = f.readlines()
                 self.types = [item.rstrip().split("\t") for item in types]  # remove the newline character and split
         else:
-            err = True
-            print("No type file found at: "+self.type_file+"\nPlease check path and try again.")
+            logging.error("No type file found at: {}\nPlease check path and try again.".format(self.type_file))
 
-
-        self.cap = cv2.VideoCapture(self.in_file)
-        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # load the video
         if not os.path.isfile(self.in_file):
-            err = True
-            print("Video file doesn't exist be loaded: " + self.in_file)
+            logging.error("Video file doesn't exist: {}".format(self.in_file))
         else:
+            self.cap = cv2.VideoCapture(self.in_file)
+            self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             if self.total_frames < 1:
-                err = True
-                print("Video file can't be loaded: " + self.in_file)
-                print("This may be related to OpenCV and FFMPEG")
+                logging.error("Video file can't be loaded: {}\n"
+                              "This may be related to OpenCV and FFMPEG".format(self.in_file))
             else:
-                print("Loaded video file successfully: " + self.in_file)
+                logging.info("Loaded video file successfully: {}".format(self.in_file))
 
-        if err:
-            return
-
+        # let's build the GUI
         self.root = Tk()
         self.root.title('Video Sequence Annotator')
         geom = "1281x847"
@@ -100,18 +99,17 @@ class Annotator:
         self.zoom = 120  # the larger the more zoomed in the timeline
         self.speed = 5
 
-        vid_id = self.in_file.split('/')
-        vid_id = vid_id[-1]
-        vid_id = vid_id.split('.')[0]  # remove the file ext
+        _, vid_id = os.path.split(self.in_file)
 
-        if os.path.isfile(self.out_file+'/'+vid_id+'.json'):
-            print('File '+self.out_file+'/'+vid_id+'.json'+' exists. Loading it.')
-            inF = open(self.out_file+'/'+vid_id+'.json', 'r')
-            self.database = json.load(inF)
-            inF.close()
+        # load the save json it it already exists
+        save_path = os.path.join(self.out_file, vid_id + ".json")
+        if os.path.isfile(save_path):
+            logging.info("File {} exists. Loading it.".format(save_path))
+            with open(save_path, 'r') as f:
+                self.database = json.load(f)
         else:
-            print('File '+self.out_file+'/'+vid_id+'.json'+' does not exist. Will make new database.')
-            self.database = {'video': self.in_file, 'classes': {'USE': [],'SPLITS': []}}
+            logging.info("File {} does not exist. Will make new database.".format(save_path))
+            self.database = {'video': self.in_file, 'classes': {'USE': [], 'SPLITS': []}}
 
             if len(self.types) > 0:
                 for the_class in self.types:
@@ -336,8 +334,12 @@ class Annotator:
         self.update_data_but.configure(text='UPDATE')
 
         self.refresh_all = True
-        self.colours = [(4,174,248),(16,217,4),(240,191,16),(217,48,14),(133,4,248),(16,2,248),(2,217,165),(184,240,14),(217,131,13),(248,2,109)]
-        self.highlights = [(151,217,248),(135,217,132),(240,223,158),(217,156,143),(204,151,248),(150,150,248),(131,217,191),(225,240,157),(217,183,142),(248,150,203)]
+
+        # set the colour values
+        self.colours = [(4, 174, 248), (16, 217, 4), (240, 191, 16), (217, 48, 14), (133, 4, 248),
+                        (16, 2, 248), (2, 217, 165), (184, 240, 14), (217, 131, 13), (248, 2, 109)]
+        self.highlights = [(151, 217, 248), (135, 217, 132), (240, 223, 158), (217, 156, 143), (204, 151, 248),
+                           (150, 150, 248), (131, 217, 191), (225, 240, 157), (217, 183, 142), (248, 150, 203)]
 
         # setup the update callback
         self.root.after(self.speed, func=lambda: self.update_all())
@@ -356,15 +358,10 @@ class Annotator:
         self.save()
 
     def save(self):
-        vid_id = self.in_file.split('/')
-        vid_id = vid_id[len(vid_id)-1]
-        # vid_id = vid_id[1:]
-        vid_id = vid_id.split('.')[0]
-        # print('SAVING:    '+self.out_file+'/'+vid_id+'.json')
-        out_f = open(self.out_file+'/'+vid_id+'.json', 'w')
-        json.dump(self.database, out_f)
-        out_f.close()
+        _, vid_id = os.path.split(self.in_file)
 
+        with open(os.path.join(self.out_file, vid_id+".json"), 'w') as f:
+            json.dump(self.database, f)
 
     def quit_(self):
         self.save()
@@ -430,10 +427,10 @@ class Annotator:
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, int(((self.start_crop + cx) / (1.0 * d_w)) * self.total_frames) - 1)
 
                 self.read_single = 1
-                self.past = currentframe # could just use curframe var
+                self.past = currentframe  # could just use curframe var
                 self.currentframe = int(((self.start_crop+cx)/(1.0*d_w))*self.total_frames)-1
                 # will need to redraw where line was!!! HOW? USE PAST
-                self.refresh_all = True # change later
+                self.refresh_all = True  # change later
 
             # if scrollbar
             elif cy < 11:
@@ -455,7 +452,7 @@ class Annotator:
                     self.selected_class = 'SPLITS'
                 else:
 
-                    for the_class in self.database['classes']:
+                    for the_class in sorted(self.database['classes']):
                         if the_class == 'USE' or the_class == 'SPLITS':
                             continue
                         else:
@@ -505,7 +502,7 @@ class Annotator:
 
             # paint selected class backgound
             outer_index = 0
-            for the_class in self.database['classes']:
+            for the_class in sorted(self.database['classes']):
                 if the_class == 'USE' or the_class == 'SPLITS':
                     continue
                 elif self.selected_class == the_class:
@@ -519,12 +516,12 @@ class Annotator:
             # paint all sequences
             outer_index = 0
             inner_index = 0
-            for the_class in self.database['classes']:
+            for the_class in sorted(self.database['classes']):  # alphabetical order to class displays
 
                 if the_class == 'USE':
                     pos_n = d_h-20
                     pos_s = d_h-10
-                    self.display[pos_n:pos_s, :, :] = (130,0,0)
+                    self.display[pos_n:pos_s, :, :] = (130, 0, 0)
                     for i in range(0, len(self.database['classes'][the_class])):
                         start_frame = self.database['classes'][the_class][i]['start']
                         end_frame = self.database['classes'][the_class][i]['end']
@@ -550,11 +547,14 @@ class Annotator:
                         pos_e = int(d_w*end_frame/self.total_frames)
 
                         if (self.selected_flag == 1) & (self.selected_class == the_class) & (self.selected_index == i):
-                            if self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Train':
+                            if self.database['classes'][self.selected_class][self.selected_index]['custom']['Type']\
+                                    == 'Train':
                                 self.display[pos_n:pos_s, pos_w:pos_e, :] = (0, 190, 0)
-                            elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Val':
+                            elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type']\
+                                    == 'Val':
                                 self.display[pos_n:pos_s, pos_w:pos_e, :] = (190, 190, 0)
-                            elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type'] == 'Test':
+                            elif self.database['classes'][self.selected_class][self.selected_index]['custom']['Type']\
+                                    == 'Test':
                                 self.display[pos_n:pos_s, pos_w:pos_e, :] = (190, 0, 0)
                             else:
                                 self.display[pos_n:pos_s, pos_w:pos_e, :] = (40, 40, 40)
@@ -605,15 +605,26 @@ class Annotator:
         display_cropped = self.display[:, int(self.start_crop):int((self.start_crop+int(win_w-20))), :]
         display_cropped[0:10, :] = 50
         display_cropped[9:10, :] = 200
-        display_cropped[0:10, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))), :] = 200  # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))-2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
-        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0))+2+(int(win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
+        display_cropped[0:10, int((win_w-20)*(self.start_crop/(d_w*1.0))):
+                              int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))), :] = 200  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0)) +
+                                 (int(win_w-20)*((self.start_crop+int(win_w-20)) / (1.0*d_w)) -
+                                  int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0)) - 2 +
+                                 (int(win_w-20)*((self.start_crop+int(win_w-20)) / (1.0*d_w)) -
+                                  int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
+        display_cropped[2:8, int((win_w-20)*(self.start_crop/(d_w*1.0)) + 2 +
+                                 (int(win_w-20)*((self.start_crop+int(win_w-20)) / (1.0*d_w)) -
+                                  int(win_w-20)*(self.start_crop/(d_w*1.0)))/2.0), :] = 50  # scroll bar
         for i in range(0, 5):
-            display_cropped[0:5-i, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i), :] = 50
-            display_cropped[4+i:9, int((win_w-20)*(self.start_crop/(d_w*1.0))):int((win_w-20)*(self.start_crop/(d_w*1.0))+i), :] = 50
-            display_cropped[0:5-i, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:] = 50
-            display_cropped[4+i:9, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))),:] = 50
+            display_cropped[0:5-i, int((win_w-20)*(self.start_crop/(d_w*1.0))):
+                                   int((win_w-20)*(self.start_crop/(d_w*1.0)) + i), :] = 50
+            display_cropped[4+i:9, int((win_w-20)*(self.start_crop/(d_w*1.0))):
+                                   int((win_w-20)*(self.start_crop/(d_w*1.0)) + i), :] = 50
+            display_cropped[0:5-i, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):
+                                   int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))), :] = 50
+            display_cropped[4+i:9, int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))-i):
+                                   int((win_w-20)*((self.start_crop+int(win_w-20))/(1.0*d_w))), :] = 50
 
         a = Image.fromarray(display_cropped)
 
@@ -658,8 +669,16 @@ class Annotator:
         if self.selected_flag > 0:
 
             self.index_name_label.insert(CURRENT, self.database['classes'][self.selected_class][self.selected_index]['name'])
-            self.index_start_label.insert(CURRENT, '%02d:%02d:%02d.%02d' % (int(((self.selected_index_start/self.fps)/60)/60),int(((self.selected_index_start/self.fps)/60)%60),int((self.selected_index_start/self.fps)%60),int((self.selected_index_start%self.fps))))
-            self.index_end_label.insert(CURRENT, '%02d:%02d:%02d.%02d' % (int(((self.selected_index_end/self.fps)/60)/60),int(((self.selected_index_end/self.fps)/60)%60),int((self.selected_index_end/self.fps)%60),int((self.selected_index_end%self.fps))))
+            self.index_start_label.insert(CURRENT, '%02d:%02d:%02d.%02d' %
+                                          (int(((self.selected_index_start/self.fps)/60)/60),
+                                           int(((self.selected_index_start/self.fps)/60) % 60),
+                                           int((self.selected_index_start/self.fps) % 60),
+                                           int((self.selected_index_start % self.fps))))
+            self.index_end_label.insert(CURRENT, '%02d:%02d:%02d.%02d' %
+                                        (int(((self.selected_index_end/self.fps)/60)/60),
+                                         int(((self.selected_index_end/self.fps)/60) % 60),
+                                         int((self.selected_index_end/self.fps) % 60),
+                                         int((self.selected_index_end % self.fps))))
             self.index_desc_label.insert(CURRENT, self.database['classes'][self.selected_class][self.selected_index]['desc'])
 
             self.cust = self.database['classes'][self.selected_class][self.selected_index]['custom']
@@ -699,10 +718,11 @@ class Annotator:
             self.dynamic_labels['_ADD_'].configure(background="#666")
             self.dynamic_labels['_ADD_'].configure(foreground="#FFF")
             self.dynamic_labels['_ADD_'].configure(relief=FLAT)
-            self.dynamic_labels['_ADD_'].insert(END,'New_cust')
+            self.dynamic_labels['_ADD_'].insert(END, 'New_cust')
             self.dynamic_labels['_ADD_'].config(highlightbackground='#505050')
 
-            self.dynamic_label_buts['_ADD_'] = Button(self.stats_label, command=lambda: self.add_custom(self.dynamic_labels['_ADD_'].get(1.0,END)))
+            self.dynamic_label_buts['_ADD_'] = Button(self.stats_label, command=lambda: self.add_custom(
+                self.dynamic_labels['_ADD_'].get(1.0, END)))
             self.dynamic_label_buts['_ADD_'].place(x=320, y=(251+(i*30)), height=22, width=22)
             self.dynamic_label_buts['_ADD_'].configure(activebackground="#d9d9d9")
             self.dynamic_label_buts['_ADD_'].configure(background="#505050")
@@ -717,12 +737,15 @@ class Annotator:
     def update_data(self):
 
         if (self.selected_class is not None) & (self.selected_class != ''):
-            self.database['classes'][str(self.class_name_label.get(1.0, END)).replace('\n', '')] = self.database['classes'].pop(self.selected_class, None)
+            self.database['classes'][str(self.class_name_label.get(1.0, END)).replace('\n', '')] = \
+                self.database['classes'].pop(self.selected_class, None)
             self.selected_class = str(self.class_name_label.get(1.0, END)).replace('\n', '')
 
             if (self.selected_index is not None) & (self.selected_index != ''):
-                self.database['classes'][self.selected_class][self.selected_index]['name'] = str(self.index_name_label.get(1.0, END)).replace('\n', '')
-                self.database['classes'][self.selected_class][self.selected_index]['desc'] = str(self.index_desc_label.get(1.0, END)).replace('\n', '')
+                self.database['classes'][self.selected_class][self.selected_index]['name'] = \
+                    str(self.index_name_label.get(1.0, END)).replace('\n', '')
+                self.database['classes'][self.selected_class][self.selected_index]['desc'] = \
+                    str(self.index_desc_label.get(1.0, END)).replace('\n', '')
 
                 self.cust = self.database['classes'][self.selected_class][self.selected_index]['custom']
                 for key in self.cust:
@@ -760,7 +783,8 @@ class Annotator:
 
     def del_seq(self):
         self.refresh_all = True
-        if (self.selected_class is not None) & (self.selected_class != '') & (self.selected_index is not None) & (self.selected_index != ''):
+        if (self.selected_class is not None) & (self.selected_class != '') &\
+                (self.selected_index is not None) & (self.selected_index != ''):
             del self.database['classes'][self.selected_class][self.selected_index]
             self.selected_flag = 0
             self.selected_index = None
@@ -779,15 +803,23 @@ class Annotator:
                         taken_names.append(self.database['classes'][self.selected_class][i]['name'])
 
                     new_name = 'error'
-                    for i in range(1,1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
+                    for i in range(1, 1000000):  # shouldn't have more than this many events in a class per video...
                         if "%04d" % i not in taken_names:
                             new_name = "%04d" % i
                             break
 
                     if self.selected_class == 'SPLITS':
-                        self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {'Type':'Train'}})
+                        self.database['classes'][self.selected_class].append({'name': new_name,
+                                                                              'start': int(self.current_frame),
+                                                                              'end': int(self.current_frame)+1,
+                                                                              'desc': '',
+                                                                              'custom': {'Type': 'Train'}})
                     else:
-                        self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {}})
+                        self.database['classes'][self.selected_class].append({'name': new_name,
+                                                                              'start': int(self.current_frame),
+                                                                              'end': int(self.current_frame)+1,
+                                                                              'desc': '',
+                                                                              'custom': {}})
                         if len(self.types) > 0:
                             for the_class in self.types:  # check all classes
                                 if len(the_class) > 1:  # if has attributes
@@ -811,15 +843,23 @@ class Annotator:
                     taken_names.append(self.database['classes'][self.selected_class][i]['name'])
 
                 new_name = 'error'
-                for i in range(1, 1000000):  # shouldnt have more than this many events in a class per video... its just out of hand
+                for i in range(1, 1000000):  # shouldnt have more than this many events in a class per video...
                     if "%04d" % i not in taken_names:
                         new_name = "%04d" % i
                         break
 
                 if self.selected_class == 'SPLITS':
-                    self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {'Type':'Train'}})
+                    self.database['classes'][self.selected_class].append({'name': new_name,
+                                                                          'start': int(self.current_frame),
+                                                                          'end': int(self.current_frame)+1,
+                                                                          'desc': '',
+                                                                          'custom': {'Type': 'Train'}})
                 else:
-                    self.database['classes'][self.selected_class].append({'name': new_name, 'start': int(self.current_frame), 'end': int(self.current_frame)+1, 'desc': '', 'custom': {}})
+                    self.database['classes'][self.selected_class].append({'name': new_name,
+                                                                          'start': int(self.current_frame),
+                                                                          'end': int(self.current_frame)+1,
+                                                                          'desc': '',
+                                                                          'custom': {}})
                     if len(self.types) > 0:
                         for the_class in self.types:  # check all classes
                             if len(the_class) > 1:  # if has attributes
@@ -849,7 +889,7 @@ class Annotator:
                 self.update_labels()
 
     def update_image(self):
-        if self.play_pause_flag>0:
+        if self.play_pause_flag > 0:
             (readsuccessful, f) = self.cap.read()
             if (readsuccessful == 'False') | (f is None):
                 print('No Video file')
@@ -890,7 +930,8 @@ class Annotator:
                     self.past_f = f
                     self.current_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
             elif self.step_for_flag > 0:
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, min(self.total_frames, self.cap.get(cv2.CAP_PROP_POS_FRAMES) + 24))
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES,
+                             min(self.total_frames, self.cap.get(cv2.CAP_PROP_POS_FRAMES) + 24))
 
                 (readsuccessful, f) = self.cap.read()
                 if (readsuccessful == 'False') | (f is None):
@@ -913,17 +954,17 @@ class Annotator:
         r_i_w = 20
         r_i_h = 15
 
-        if win_w>1:
+        if win_w > 1:
             r_i_w = min(int(win_w-380), int(.6*win_h*(1.0*orig_i_w/orig_i_h)))
             r_i_h = min(int(.6*win_h), int((win_w-380)*(1.0*orig_i_h/orig_i_w)))
-            f=cv2.resize(f, (r_i_w, r_i_h))
+            f = cv2.resize(f, (r_i_w, r_i_h))
         gray_im = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
         a = Image.fromarray(gray_im)
-        # a = a.resize((int(.6*win_w),int(.6*win_w*(1.0*orig_i_h/orig_i_w))), Image.ANTIALIAS) #do in gui, takes too long and errors at points
 
         b = ImageTk.PhotoImage(image=a)
         self.image_label.configure(image=b)
-        self.image_label.place(x=max(10,int(((win_w-380)-r_i_w)/2.0)), y=max(10,int(((win_h*.6)-r_i_h)/2.0)))  # keep in middle
+        # keep in middle
+        self.image_label.place(x=max(10, int(((win_w-380)-r_i_w)/2.0)), y=max(10, int(((win_h*.6)-r_i_h)/2.0)))
 
         self.image_label._image_cache = b  # avoid garbage collection
         self.root.update()
@@ -949,11 +990,11 @@ class Annotator:
         self.speed = max(1,int(self.speed/2.0))
 
     def upKey(self):
-        self.zoom = int(self.zoom*1.5) # the larger the more zoomed in the timeline
+        self.zoom = int(self.zoom*1.5)  # the larger the more zoomed in the timeline
         self.refresh_all = True
 
     def downKey(self):
-        self.zoom = int(self.zoom/1.5) # the larger the more zoomed in the timeline
+        self.zoom = int(self.zoom/1.5)  # the larger the more zoomed in the timeline
         self.refresh_all = True
 
     def key(self, event):
@@ -1050,7 +1091,15 @@ class Annotator:
         #     print("Error: update_all() ; %s" % e)
         #     return
 
-        self.time_label.configure(text='%02d:%02d:%02d.%02d | %02d:%02d:%02d.%02d' % (int(((self.current_frame/self.fps)/60)/60), int(((self.current_frame/self.fps)/60)%60),int((self.current_frame/self.fps)%60),int((self.current_frame%self.fps)),int(((self.total_frames/self.fps)/60)/60),int(((self.total_frames/self.fps)/60)%60),int((self.total_frames/self.fps)%60),int((self.total_frames%self.fps))))
+        self.time_label.configure(text='%02d:%02d:%02d.%02d | %02d:%02d:%02d.%02d' %
+                                       (int(((self.current_frame/self.fps)/60)/60),
+                                        int(((self.current_frame/self.fps)/60) % 60),
+                                        int((self.current_frame/self.fps) % 60),
+                                        int((self.current_frame % self.fps)),
+                                        int(((self.total_frames/self.fps)/60)/60),
+                                        int(((self.total_frames/self.fps)/60) % 60),
+                                        int((self.total_frames/self.fps) % 60),
+                                        int((self.total_frames % self.fps))))
         self.time_label.place(x=win_w-210, y=15, height=30, width=180)
         self.time_label.configure(justify=RIGHT)
 
@@ -1078,18 +1127,15 @@ class Annotator:
 
         if (time.clock()-self.start_time) > 60:
             self.start_time = time.clock()
-            vid_id = self.in_file.split('/')
-            vid_id = vid_id[len(vid_id)-1]
-            vid_id = vid_id.split('.')[0]
+            _, vid_id = os.path.split(self.in_file)
 
-            out_af = open(self.out_file+'/autosaves/'+vid_id+'_A'+str(self.autosave)+'.json', 'w')
-            json.dump(self.database, out_af)
-            out_af.close()
+            with open(os.path.join(self.out_file, "autosaves", vid_id+'_A'+str(self.autosave)+'.json'), 'w') as f:
+                json.dump(self.database, f)
+
             if self.autosave == 1:
                 self.autosave = 2
             else:
                 self.autosave = 1
-
 
         try:
             self.root.after(self.speed, func=lambda: self.update_all())
@@ -1097,20 +1143,13 @@ class Annotator:
             print("Error: root.after() ; %s" % e)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--video_file", type=str,
-                        default=os.path.join(config.directories.videos, config.annotator.video_file),
-                        help='Path to video file')
-    parser.add_argument("-t", "--type_file", type=str,
-                        default=os.path.join(config.directories.annotations, config.annotator.classes_file),
-                        help='Path to type file, which is used to initialise classes and attributes (.txt)')
-    parser.add_argument("-s", "--save_path", type=str,
-                        default=config.directories.annotations,
-                        help='Path of directory where to save annotations .json')
-    args = parser.parse_args()
-
-    Annotator(args.video_file, args.type_file, args.save_path)
+def main(_argv):
+    Annotator(FLAGS.video_file, FLAGS.type_file, FLAGS.save_path)
 
 
+if __name__ == '__main__':
 
+    try:
+        app.run(main)
+    except SystemExit:
+        pass
