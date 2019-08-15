@@ -21,11 +21,7 @@ config.directories.slices = os.path.join(config.directories.root, 'data', 'slice
 
 
 # Annotator defaults
-config.annotator = edict()
-
-config.annotator.video_file = 'V007.mp4'  # must appear in config.directories.videos directory
-config.annotator.classes_file = 'classes.txt'  # must appear in config.directories.annotations directory
-config.annotator.hander = [['Federer', 'Williams', 'Sharapova', 'Djokovic', 'Tsonga', 'Zvonareva', 'Del Potro', 'Azarenka'], ['Nadal']]  # [RIGHT,LEFT]
+config.annotator.
 
 # Processing defaults
 config.frames = edict()
