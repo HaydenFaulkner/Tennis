@@ -62,19 +62,26 @@ def crop_n_squash(frame, crop, squash):
 
 def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squash=None):
 
+    video_path = os.path.normpath(video_path)  # make the paths OS (Windows) compatible
+    save_path = os.path.normpath(save_path)  # make the paths OS (Windows) compatible
+
+    # check if the video file exists
     if not os.path.isfile(video_path):
-        print("Can't interpret the provided video path")
+        print("Can't interpret the provided video path: {}".format(video_path))
         return None
 
+    # load the video
     capture = cv2.VideoCapture(video_path)
     video_fps = capture.get(cv2.CAP_PROP_FPS)
     frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    # check if we have loaded the video fine
     if frame_count < 1:
         print("Video file can't be loaded: " + video_path)
         print("This may be related to OpenCV and FFMPEG")
         return None
 
+    # set the number of frames, using slices if specified
     frames = []
     if slices is not None:
         for slice in slices:
@@ -86,6 +93,7 @@ def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squa
     else:
         frames.extend(range(0, frame_count))
 
+    # only sample at the fps specifies or at the video's natural fps (whichever is lower)
     if fps is not None:
         fps = min(video_fps, fps)  # ensure don't sample more frames that exist
         print("Sampling %d frames per second" % fps)
@@ -95,8 +103,9 @@ def video_2_frames(video_path, save_path, slices=None, fps=None, crop=None, squa
                 frames_tmp.append(f)
         frames = frames_tmp
 
+    # create the save_path directories if they don't exist
     if not os.path.exists(save_path):
-        os.makedirs(save_path)
+        os.makedirs(save_path, exist_ok=True)
 
     current = 0
     end = max(frames)
