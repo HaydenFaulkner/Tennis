@@ -7,7 +7,8 @@ The directory structure should be organised as follows:
 .../Tennis/data/
 .../Tennis/data/annotations/
 .../Tennis/data/commentary/
-.../Tennis/data/frames/
+.../Tennis/data/frames/rgb/
+.../Tennis/data/frames/flow/
 .../Tennis/data/slices/
 .../Tennis/data/splits/
 .../Tennis/data/videos/
