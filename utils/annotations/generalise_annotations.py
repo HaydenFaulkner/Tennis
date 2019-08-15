@@ -1,5 +1,6 @@
 """
-Converts annotation files (saves new copy) from informative (Players names and forehand/backhand) to spatial (near/far, right/left)
+Converts annotation files (saves new copy) from
+informative (Players names and forehand/backhand) to spatial (near/far, right/left)
 """
 
 from absl import app, flags, logging
@@ -28,10 +29,10 @@ def generate_points_list(database):
 
         # make the set score by working out where a point fits in time eg. 1-0 or 0-2 etc.
         set_score = ''
-        for set in database['classes']['Set']:
-            score = str(set['custom']['Score'])
-            set_start = int(set['start'])
-            set_end = int(set['end'])
+        for set_ in database['classes']['Set']:
+            score = str(set_['custom']['Score'])
+            set_start = int(set_['start'])
+            set_end = int(set_['end'])
             if set_start <= point_start <= set_end or set_start <= point_end <= set_end:
                 set_score = score
 
@@ -249,4 +250,3 @@ if __name__ == "__main__":
         app.run(main)
     except SystemExit:
         pass
-
