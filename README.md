@@ -11,22 +11,7 @@ models, new results will be presented below in this readme.
 
 
 ### The Data
-The main data can be downloaded from Google Drive, the directory structure should be organised as follows:
-```bash
-/Tennis/
-/Tennis/data/ (first download below, but without video or frames dirs)
-/Tennis/data/annotations/
-/Tennis/data/videos/
-...
-/Tennis/models
-etc.
-```
-
-You can download each of the sub-directories here:
-- [``annotations``, ``commentary``, ``slices``, ``splits``](https://drive.google.com/open?id=1g8D2rS-6O9L0G540VlLeSe2iBj6S_hpA) \[2.8 MB\] - The annotation files
-- [``videos``](https://drive.google.com/open?id=1O55GYUC93vIerrRQDxfI_e6ECoAVy03j) \[11.1 GB\] - The original videos
-- [``frames``]() (coming soon) \[? GB\] (can be made using videos and code rather than downloaded)
-- [``flow``](https://drive.google.com/open?id=1d587RcqnGSk4A5Tze7UpWMGgjHCvD5nx) \[40 GB\] - The cropped and resized optical flow frames
+See [data](/data/) for download and organisation information.
 
 
 ## About
