@@ -167,7 +167,7 @@ def frames_to_video(frames_dir, video_path, fps=30):
         return None
 
     # get first file to check frame size
-    image = cv2.imread(os.path.join(frames_dir, files[0]))
+    image = cv2.imread(files[0])
     height, width, _ = image.shape  # need to get the shape of the frames
 
     # sort the files alphabetically assuming this will do them in the correct order
@@ -178,7 +178,7 @@ def frames_to_video(frames_dir, video_path, fps=30):
 
     # load and write the frames to the video
     for filename in tqdm(files, desc="Generating Video {}".format(video_path)):
-        image = cv2.imread(os.path.join(frames_dir, filename))  # load the frame
+        image = cv2.imread(filename)  # load the frame
         video.write(image)  # write the frame to the video
 
     video.release()  # release the video
