@@ -14,13 +14,16 @@ def print_progress(iteration, total, prefix='', suffix='', decimals=3, bar_lengt
     """
     Call in a loop to create standard out progress bar
 
-    :param iteration: current iteration
-    :param total: total iterations
-    :param prefix: prefix string
-    :param suffix: suffix string
-    :param decimals: positive number of decimals in percent complete
-    :param bar_length: character length of bar
-    :return: None
+    Args:
+        iteration (int): current iteration
+        total (int): total iterations
+        prefix (str): prefix string (default is '')
+        suffix (str): suffix string (default is '')
+        decimals (int): positive number of decimals in percent complete (default is 3)
+        bar_length (int): character length of bar (default is 100)
+
+    Returns:
+        None
     """
 
     format_str = "{0:." + str(decimals) + "f}"  # format the % done number string
@@ -35,13 +38,16 @@ def extract_frames(video_path, frames_dir, overwrite=False, start=-1, end=-1, ev
     """
     Extract frames from a video using OpenCVs VideoCapture
 
-    :param video_path: path of the video
-    :param frames_dir: the directory to save the frames
-    :param overwrite: to overwrite frames that already exist?
-    :param start: start frame
-    :param end: end frame
-    :param every: frame spacing
-    :return: count of images saved
+    Args:
+        video_path (str): path of the video
+        frames_dir (str): the directory to save the frames
+        overwrite (bool): to overwrite frames that already exist? (default is False)
+        start (int): start frame (default is -1)
+        end (int): end frame (default is -1)
+        every (int): frame spacing (default is 1)
+
+    Returns:
+        int: count of images saved
     """
 
     video_path = os.path.normpath(video_path)  # make the paths OS (Windows) compatible
@@ -94,12 +100,15 @@ def video_to_frames(video_path, frames_dir, overwrite=False, every=1, chunk_size
     """
     Extracts the frames from a video using multiprocessing
 
-    :param video_path: path to the video
-    :param frames_dir: directory to save the frames
-    :param overwrite: overwrite frames if they exist?
-    :param every: extract every this many frames
-    :param chunk_size: how many frames to split into chunks (one chunk per cpu core process)
-    :return: path to the directory where the frames were saved, or None if fails
+    Args:
+        video_path (str): path to the video
+        frames_dir (str): directory to save the frames
+        overwrite (bool): overwrite frames if they exist? (default is False)
+        every (int): extract every this many frames (default is 1)
+        chunk_size (int): how many frames to split into chunks (one chunk per cpu core process) (default is 1000)
+
+    Returns:
+        str: path to the directory where the frames were saved, or None if fails
     """
 
     video_path = os.path.normpath(video_path)  # make the paths OS (Windows) compatible
@@ -142,10 +151,14 @@ def frames_to_video(frames_dir, video_path, fps=30):
     """
     Generates a .mp4 video from a directory of frames
 
-    :param frames_dir: the directory containing the frames, note that this and any subdirs be looked through recursively
-    :param video_path: path to save the video
-    :param fps: the frames per second to make the output video
-    :return: the output video path, or None if error
+    Args:
+        frames_dir (str): the directory containing the frames
+                          note that this and any subdirs be looked through recursively
+        video_path (str): path to save the video
+        fps (int): the frames per second to make the output video (default is 30)
+
+    Returns:
+        str: the output video path, or None if error
     """
 
     frames_dir = os.path.normpath(frames_dir)  # make the paths OS (Windows) compatible
