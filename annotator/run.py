@@ -13,8 +13,9 @@ import os.path
 from PIL import Image, ImageTk
 import time
 from tkinter import Tk, Label, Frame, GROOVE, Text, FLAT, END, Button, RIGHT, CURRENT
+from tkinter.font import Font, BOLD
 
-flags.DEFINE_string('video_file', 'data/videos/test.mp4',
+flags.DEFINE_string('video_file', 'data/videos/V006.mp4',
                     'Path to the video file to annotate.')
 flags.DEFINE_string('type_file', 'data/annotations/classes.txt',
                     'Path to the classes type .txt file.')
@@ -53,6 +54,8 @@ class Annotator:
 
         # let's build the GUI
         self.root = Tk()
+        my_font = Font(root=self.root, family="Arial", size=9)
+        # self.root.config(font=my_font)
         self.root.title('Video Sequence Annotator')
         geom = "1281x847"
         self.root.geometry(geom)
@@ -65,10 +68,10 @@ class Annotator:
         win_h = self.root.winfo_height()
         win_w = self.root.winfo_width()
 
-        self.image_label = Label(master=self.root)
+        self.image_label = Label(master=self.root, font=my_font)
         self.image_label.pack()
 
-        self.timeline_label = Label(master=self.root)
+        self.timeline_label = Label(master=self.root, font=my_font)
         self.timeline_label.bind("<ButtonPress-1>", self.mouse_down)
         self.timeline_label.bind("<ButtonRelease-1>", self.mouse_up)
         self.timeline_label.bind("<B1-Motion>", self.mouse_move)
@@ -100,6 +103,7 @@ class Annotator:
         self.speed = 5
 
         _, vid_id = os.path.split(self.in_file)
+        vid_id = '.'.join(vid_id.split('.')[:-1])
 
         # load the save json it it already exists
         save_path = os.path.join(self.out_file, vid_id + ".json")
@@ -136,7 +140,7 @@ class Annotator:
         self.tools_label.configure(background="#505050")
         self.tools_label.pack()
 
-        stats_title = Label(self.stats_label)
+        stats_title = Label(self.stats_label, font=my_font)
         stats_title.place(x=5, y=0, height=30, width=340)
         stats_title.configure(activebackground="#555")
         stats_title.configure(activeforeground="white")
@@ -144,7 +148,7 @@ class Annotator:
         stats_title.configure(foreground="#FFF")
         stats_title.configure(text='Default Properties')
 
-        stats_cust_title = Label(self.stats_label)
+        stats_cust_title = Label(self.stats_label, font=my_font)
         stats_cust_title.place(x=5, y=218, height=30, width=340)
         stats_cust_title.configure(activebackground="#555")
         stats_cust_title.configure(activeforeground="white")
@@ -152,7 +156,7 @@ class Annotator:
         stats_cust_title.configure(foreground="#FFF")
         stats_cust_title.configure(text='Custom Properties')
 
-        video_name_label_title = Label(self.stats_label)
+        video_name_label_title = Label(self.stats_label, font=my_font)
         video_name_label_title.place(x=5, y=30, height=30, width=50)
         video_name_label_title.configure(activebackground="#555")
         video_name_label_title.configure(activeforeground="white")
@@ -160,7 +164,7 @@ class Annotator:
         video_name_label_title.configure(foreground="#FFF")
         video_name_label_title.configure(text='Video:')
 
-        video_name_label = Text(self.stats_label)
+        video_name_label = Text(self.stats_label, font=my_font)
         video_name_label.place(x=55, y=33, height=22, width=288)
         video_name_label.configure(background="#666")
         video_name_label.configure(foreground="#FFF")
@@ -169,7 +173,7 @@ class Annotator:
         video_name_label.config(highlightbackground='#505050')
         video_name_label.configure(state='disabled')
 
-        class_name_label_title = Label(self.stats_label)
+        class_name_label_title = Label(self.stats_label, font=my_font)
         class_name_label_title.place(x=5, y=60, height=30, width=50)
         class_name_label_title.configure(activebackground="#555")
         class_name_label_title.configure(activeforeground="white")
@@ -177,7 +181,7 @@ class Annotator:
         class_name_label_title.configure(foreground="#FFF")
         class_name_label_title.configure(text='Class:')
 
-        self.class_name_label = Text(self.stats_label)
+        self.class_name_label = Text(self.stats_label, font=my_font)
         self.class_name_label.place(x=55, y=63, height=22, width=288)
         self.class_name_label.configure(background="#666")
         self.class_name_label.configure(foreground="#FFF")
@@ -186,7 +190,7 @@ class Annotator:
         self.class_name_label.config(highlightbackground='#505050')
         # class_name_label.configure(state='disabled')
 
-        self.index_name_label_title = Label(self.stats_label)
+        self.index_name_label_title = Label(self.stats_label, font=my_font)
         self.index_name_label_title.place(x=5, y=90, height=30, width=50)
         self.index_name_label_title.configure(activebackground="#555")
         self.index_name_label_title.configure(activeforeground="white")
@@ -194,7 +198,7 @@ class Annotator:
         self.index_name_label_title.configure(foreground="#FFF")
         self.index_name_label_title.configure(text='Name:')
 
-        self.index_name_label = Text(self.stats_label)
+        self.index_name_label = Text(self.stats_label, font=my_font)
         self.index_name_label.place(x=55, y=93, height=22, width=288)
         self.index_name_label.configure(background="#666")
         self.index_name_label.configure(foreground="#FFF")
@@ -202,7 +206,7 @@ class Annotator:
         self.index_name_label.insert(END, self.selected_index_name)
         self.index_name_label.config(highlightbackground='#505050')
 
-        self.index_start_label_title = Label(self.stats_label)
+        self.index_start_label_title = Label(self.stats_label, font=my_font)
         self.index_start_label_title.place(x=5, y=120, height=30, width=50)
         self.index_start_label_title.configure(activebackground="#555")
         self.index_start_label_title.configure(activeforeground="white")
@@ -210,7 +214,7 @@ class Annotator:
         self.index_start_label_title.configure(foreground="#FFF")
         self.index_start_label_title.configure(text='Start:')
 
-        self.index_start_label = Text(self.stats_label)
+        self.index_start_label = Text(self.stats_label, font=my_font)
         self.index_start_label.place(x=55, y=123, height=22, width=288)
         self.index_start_label.configure(background="#666")
         self.index_start_label.configure(foreground="#FFF")
@@ -218,7 +222,7 @@ class Annotator:
         self.index_start_label.insert(END, self.selected_index_name)
         self.index_start_label.config(highlightbackground='#505050')
 
-        self.index_end_label_title = Label(self.stats_label)
+        self.index_end_label_title = Label(self.stats_label, font=my_font)
         self.index_end_label_title.place(x=5, y=150, height=30, width=50)
         self.index_end_label_title.configure(activebackground="#555")
         self.index_end_label_title.configure(activeforeground="white")
@@ -226,7 +230,7 @@ class Annotator:
         self.index_end_label_title.configure(foreground="#FFF")
         self.index_end_label_title.configure(text='End:')
 
-        self.index_end_label = Text(self.stats_label)
+        self.index_end_label = Text(self.stats_label, font=my_font)
         self.index_end_label.place(x=55, y=153, height=22, width=288)
         self.index_end_label.configure(background="#666")
         self.index_end_label.configure(foreground="#FFF")
@@ -234,7 +238,7 @@ class Annotator:
         self.index_end_label.insert(END, self.selected_index_name)
         self.index_end_label.config(highlightbackground='#505050')
 
-        self.index_desc_label_title = Label(self.stats_label)
+        self.index_desc_label_title = Label(self.stats_label, font=my_font)
         self.index_desc_label_title.place(x=5, y=180, height=30, width=50)
         self.index_desc_label_title.configure(activebackground="#555")
         self.index_desc_label_title.configure(activeforeground="white")
@@ -242,7 +246,7 @@ class Annotator:
         self.index_desc_label_title.configure(foreground="#FFF")
         self.index_desc_label_title.configure(text='Desc:')
 
-        self.index_desc_label = Text(self.stats_label)
+        self.index_desc_label = Text(self.stats_label, font=my_font)
         self.index_desc_label.place(x=55, y=183, height=22, width=288)
         self.index_desc_label.configure(background="#666")
         self.index_desc_label.configure(foreground="#FFF")
@@ -250,83 +254,83 @@ class Annotator:
         self.index_desc_label.insert(END, self.selected_index_name)
         self.index_desc_label.config(highlightbackground='#505050')
 
-        self.prev_frame_but = Button(self.tools_label, command=self.prev_frame)
+        self.prev_frame_but = Button(self.tools_label, command=self.prev_frame, font=my_font)
         self.prev_frame_but.configure(activebackground="#d9d9d9")
         self.prev_frame_but.configure(background="#505050")
         self.prev_frame_but.configure(foreground="#FFF")
         self.prev_frame_but.configure(relief=FLAT)
         self.prev_frame_but.configure(text='<')
 
-        self.next_frame_but = Button(self.tools_label, command=self.next_frame)
+        self.next_frame_but = Button(self.tools_label, command=self.next_frame, font=my_font)
         self.next_frame_but.configure(activebackground="#d9d9d9")
         self.next_frame_but.configure(background="#505050")
         self.next_frame_but.configure(foreground="#FFF")
         self.next_frame_but.configure(relief=FLAT)
         self.next_frame_but.configure(text='>')
 
-        self.back_but = Button(self.tools_label, command=self.step_back)
+        self.back_but = Button(self.tools_label, command=self.step_back, font=my_font)
         self.back_but.configure(activebackground="#d9d9d9")
         self.back_but.configure(background="#505050")
         self.back_but.configure(foreground="#FFF")
         self.back_but.configure(relief=FLAT)
         self.back_but.configure(text='|<')
 
-        self.skip_but = Button(self.tools_label, command=self.step_forward)
+        self.skip_but = Button(self.tools_label, command=self.step_forward, font=my_font)
         self.skip_but.configure(activebackground="#d9d9d9")
         self.skip_but.configure(background="#505050")
         self.skip_but.configure(foreground="#FFF")
         self.skip_but.configure(relief=FLAT)
         self.skip_but.configure(text='>|')
 
-        self.play_pause = Button(self.tools_label, command=self.play)
+        self.play_pause = Button(self.tools_label, command=self.play, font=my_font)
         self.play_pause.configure(activebackground="#d9d9d9")
         self.play_pause.configure(background="#505050")
         self.play_pause.configure(foreground="#FFF")
         self.play_pause.configure(relief=FLAT)
         self.play_pause.configure(text='PAUSE')
 
-        self.time_label = Label(self.tools_label)
+        self.time_label = Label(self.tools_label, font=my_font)
         self.time_label.configure(background="#505050")
         self.time_label.configure(foreground="#FFF")
         self.time_label.configure(text='''Time / Total''')
         self.time_label.pack()
 
-        self.del_class_but = Button(self.tools_label, command=self.del_class)
+        self.del_class_but = Button(self.tools_label, command=self.del_class, font=my_font)
         self.del_class_but.configure(activebackground="#d9d9d9")
         self.del_class_but.configure(background="#505050")
         self.del_class_but.configure(foreground="#FFF")
         self.del_class_but.configure(relief=FLAT)
         self.del_class_but.configure(text='DELETE CLASS')
 
-        self.add_class_but = Button(self.tools_label, command=self.add_class)
+        self.add_class_but = Button(self.tools_label, command=self.add_class, font=my_font)
         self.add_class_but.configure(activebackground="#d9d9d9")
         self.add_class_but.configure(background="#505050")
         self.add_class_but.configure(foreground="#FFF")
         self.add_class_but.configure(relief=FLAT)
         self.add_class_but.configure(text='NEW CLASS')
 
-        self.del_seq_but = Button(self.tools_label, command=self.del_seq)
+        self.del_seq_but = Button(self.tools_label, command=self.del_seq, font=my_font)
         self.del_seq_but.configure(activebackground="#d9d9d9")
         self.del_seq_but.configure(background="#505050")
         self.del_seq_but.configure(foreground="#FFF")
         self.del_seq_but.configure(relief=FLAT)
         self.del_seq_but.configure(text='DELETE')
 
-        self.start_seq_but = Button(self.tools_label, command=self.start_seq)
+        self.start_seq_but = Button(self.tools_label, command=self.start_seq, font=my_font)
         self.start_seq_but.configure(activebackground="#d9d9d9")
         self.start_seq_but.configure(background="#505050")
         self.start_seq_but.configure(foreground="#FFF")
         self.start_seq_but.configure(relief=FLAT)
         self.start_seq_but.configure(text='START')
 
-        self.end_seq_but = Button(self.tools_label, command=self.end_seq)
+        self.end_seq_but = Button(self.tools_label, command=self.end_seq, font=my_font)
         self.end_seq_but.configure(activebackground="#d9d9d9")
         self.end_seq_but.configure(background="#505050")
         self.end_seq_but.configure(foreground="#FFF")
         self.end_seq_but.configure(relief=FLAT)
         self.end_seq_but.configure(text='END')
 
-        self.update_data_but = Button(self.stats_label, command=self.update_data)
+        self.update_data_but = Button(self.stats_label, command=self.update_data, font=my_font)
         self.update_data_but.configure(activebackground="#d9d9d9")
         self.update_data_but.configure(background="#505050")
         self.update_data_but.configure(foreground="#FFF")
@@ -600,7 +604,7 @@ class Annotator:
 
             self.display[d_h-10:d_h-9, :] = 200
 
-        self.display[d_h-10:d_h, :int(d_w*self.current_frame/self.total_frames), :] = 200  # prog bar
+            self.display[d_h-10:d_h, :int(d_w*self.current_frame/self.total_frames), :] = 200  # prog bar
 
         display_cropped = self.display[:, int(self.start_crop):int((self.start_crop+int(win_w-20))), :]
         display_cropped[0:10, :] = 50
