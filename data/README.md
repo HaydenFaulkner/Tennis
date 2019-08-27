@@ -9,14 +9,15 @@ The directory structure should be organised as follows:
 .../Tennis/data/commentary/
 .../Tennis/data/frames/rgb/
 .../Tennis/data/frames/flow/
-.../Tennis/data/slices/
 .../Tennis/data/splits/
 .../Tennis/data/videos/
 ```
 
 ### Download
 You can download each of the sub-directories here:
-- [``annotations``, ``commentary``, ``slices``, ``splits``](https://drive.google.com/open?id=1g8D2rS-6O9L0G540VlLeSe2iBj6S_hpA) \[2.8 MB\] - The annotation files
+- [``annotations``](http://hf.id.au/data/Tennis/annotations.tar.gz) \[2.8 MB\] - The annotation files
+- [``commentary``]() \[-\] - Coming soon
+- [``splits``]() \[-\] - Coming soon
 - [``videos``](https://drive.google.com/open?id=1O55GYUC93vIerrRQDxfI_e6ECoAVy03j) \[11.1 GB\] - The original videos
 - [``frames/rgb``]() (coming soon) \[? GB\] (can be made using videos and code rather than downloaded)
 - [``frames/flow``](https://drive.google.com/open?id=1d587RcqnGSk4A5Tze7UpWMGgjHCvD5nx) \[40 GB\] - The cropped and resized optical flow frames
@@ -28,9 +29,6 @@ You can download each of the sub-directories here:
 commentary sentences associated with their `point_id`.
 - `frames` stores `.jpg` image files for `rgb` and `flow` frames for
 each video in subdirectories.
-- `slices` stores `.txt` slice files for each video that specify a
-shortened temporal span for a match, removing the pre- and post-match
-coverage.
 - `splits` stores `.txt` files for each split (train, val, test).
 - `videos` stores the original video files as `.mp4` files.
 

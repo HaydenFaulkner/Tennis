@@ -9,11 +9,6 @@ available soon.
 ***PLEASE NOTE:*** The results in the paper were with outdated Keras
 models, new results will be presented below in this readme.
 
-
-### The Data
-See [data](/data/) for download and organisation information.
-
-
 ## About
 ### The Annotator
 The [annotator](/annotator/) can be used to annotate any video with
@@ -21,6 +16,8 @@ dense temporal events using a GUI. See the README in the
 [annotator](/annotator/) directory for more information.
 
 ### Data Pre-processing
+See [data](/data/) for download and organisation information.
+
 Once you have `.json` annotation files with the annotator, you can run:
 ```
 python utils/annotations/preprocess.py
@@ -33,7 +30,8 @@ forehand/backhand to near/far and left/right
 3. Generates label `.txt` files for each generalised `.json` annotation
  file
 
-Download links to these files coming soon.
+Alternatively you can download our annotations `.tar.gz`
+([see data](/data/))
 
 ### The Models
 Coming Soon - More information on the models can be found in the README in the models directory.
