@@ -4,6 +4,7 @@ Readme coming soon.
 The annotator can be used to annotate any video with dense temporal events using a GUI. See the README in the annotator directory for more information.
 
 ## The GUI
+![The Annotator](annotator.png)
 ### Overview
 
 ### Process for Usage
