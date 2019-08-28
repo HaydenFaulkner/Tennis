@@ -1,0 +1,316 @@
+"""Tennis Video Classification Dataset"""
+from absl import app, flags, logging
+import cv2
+import mxnet as mx
+import os
+import random
+
+from utils.video import video_to_frames
+
+
+class TennisSet:
+    def __init__(self, root='data', transform=None, split='train', every=5, balance=True,
+                 padding=1, window=[1, 5], model_id='0000', split_id='01'):
+        self._root = root
+        self._split = split
+        self._balance = balance
+        self._every = every  # only get every nth frame from a video
+        self._padding = padding  # sample padding around event boundaries
+        self._window = window  # input frame volume size =1:frames >1:clip, sample not frame based
+        self._transform = transform
+
+        self._videos_dir = os.path.join(root, "videos")
+        self._frames_dir = os.path.join(root, "frames")
+        self._splits_dir = os.path.join(root, "splits")
+        self._labels_dir = os.path.join(root, "annotations", "labels")
+        self.output_dir = os.path.join(root, "outputs", model_id, split)
+
+        self.classes = self._get_classes()
+
+        self._samples, self._videos, self._events = self.load_data(split_id=split_id)
+
+        if self._balance:
+            self._samples = self._balance_classes()
+
+    def __str__(self):
+        return '\n\n' + self.__class__.__name__ + '\n' + self.stats() + '\n'
+
+    def stats(self):
+        """
+        Get a stats string for the dataset
+
+        Returns:
+            str: stats string
+        """
+        output = ''
+        output += 'Split: {}\n'.format(self._split)
+
+        classes = self.classes
+        frame_counts = [0]*len(classes)
+        for s in self._samples:
+            frame_counts[classes.index(s[2])] += 1
+        event_counts = [0]*len(classes)
+        for e in self._events:
+            event_counts[classes.index(e[3])] += 1
+
+        output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format('Class', '# Frames', '# Events', 'FperE')
+        for i, c in enumerate(classes):
+            output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format(c, frame_counts[i], event_counts[i],
+                                                                 int(frame_counts[i]/(event_counts[i]+.00001)))
+        return output
+
+    def __len__(self):
+        return len(self._samples)
+
+    @staticmethod
+    def get_image_path(root_dir, video_name, frame_number, chunk_size=1000):
+        chunk = int(frame_number/chunk_size)*chunk_size
+        return os.path.join(root_dir, video_name+'.mp4', '{:010d}'.format(chunk), '{:010d}.jpg'.format(frame_number))
+
+    def __getitem__(self, idx):
+        sample = self._samples[idx]
+        img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
+        label = self.classes.index(sample[2])
+
+        if self._window[0] > 1:
+            imgs = None
+            window_offsets = list(range(int(-self._window[0]/2), int(self._window[0]/2)+1))
+            for offset in window_offsets:
+                # need to get max frame for video, has to be an 'every' frame
+                max_frame = self._video_lengths[sample[0]]-2-self._every
+                for i in range(self._every):
+                    if (max_frame - i) % self._every == 0:
+                        max_frame -= i
+                        break
+                frame = min(max(0, sample[1]+offset*self._window[1]), int(max_frame))  # bound the frame
+                img_path = self.get_image_path(self._frames_dir, sample[0], frame)
+                img = mx.image.imread(img_path, 1)
+
+                if self._transform is not None:
+                    img = self._transform(img)
+
+                if imgs is None:
+                    imgs = mx.ndarray.expand_dims(img, axis=0)
+                else:
+                    imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
+            img = imgs
+        else:
+            img = mx.image.imread(img_path, 1)
+
+            if self._transform is not None:
+                img = self._transform(img)
+
+        return img, label, idx
+
+    @staticmethod
+    def _get_classes():
+        """
+        Gets a list of class names as specified in the imagenetvid.names file
+
+        Returns:
+            list : a list of strings
+
+        """
+        names_file = os.path.join('data', 'classes.names')
+        with open(names_file, 'r') as f:
+            classes = [line.strip() for line in f.readlines()]
+        return classes
+
+    @property
+    def num_class(self):
+        """Number of categories."""
+        return len(self.classes)
+
+    def _balance_classes(self):
+        """
+        Balance the dataset on 'Other' class, with next most sampled class, uses uniform random sampling
+
+        Returns:
+            list: the balanced set of samples
+        """
+        #
+        counts = self.class_counts()
+        next_most = max(counts[1:])
+        ratio = next_most/float(counts[0]+1)
+
+        balanced = list()
+        for sample in self._samples:
+            if sample[2] == 'O' and random.uniform(0, 1) > ratio:
+                continue
+            balanced.append(sample)
+        samples = balanced
+
+        return samples
+
+    def class_counts(self):
+        """
+        Get the sample counts for each class
+
+        Returns:
+            list: of ints with length of classes with the sample counts per class
+        """
+        classes = self.classes
+        counts = [0]*len(classes)
+        for s in self._samples:
+            counts[classes.index(s[2])] += 1  # todo assumes frames at the moment
+        return counts
+
+    def load_data(self, split_id='01'):
+        """
+        Load the data
+
+        Args:
+            split_id (str): the split id either '01' or '02'
+
+        Returns:
+            list: of samples [[video, frame, class], ...]
+            list: of videos [video1, video2, ...]
+            list: of events [[video, start_frame, last_frame, cur_class], ...]
+        """
+        splits_file = os.path.join(self._splits_dir, split_id, self._split + '.txt')
+
+        # load the splits file
+        if os.path.exists(splits_file):
+            logging.info("Loading data from {}".format(splits_file))
+            with open(os.path.join(self._splits_dir, split_id, self._split + '.txt'), 'r') as f:
+                lines = f.readlines()
+                samples = [[line.rstrip().split()[0], int(line.rstrip().split()[1])] for line in lines]
+
+            # make a list of the videos
+            videos = set()
+            for s in samples:
+                videos.add(s[0])
+            videos = list(videos)
+
+            # verify images exist, if not try and extract, if not again then ignore
+            for i in range(2):  # go around twice, so if not all samples found extract, then re-check
+                samples_exist = list()
+                samples_exist_flag = True
+
+                for s in samples:
+                    if not os.path.exists(self.get_image_path(self._frames_dir, s[0], s[1])):
+                        if i == 0:  # first attempt checking all samples exist, try extracting
+                            samples_exist_flag = False  # will flag to extract frames
+
+                            logging.info("{} does not exist, will extract frames."
+                                         "".format(self.get_image_path(self._frames_dir, s[0], s[1])))
+                            break
+
+                        else:  # second attempt, just ignore samples
+                            logging.info("{} does not exist, will ignore sample."
+                                         "".format(self.get_image_path(self._frames_dir, s[0], s[1])))
+                    else:
+                        samples_exist.append(s)
+
+                if samples_exist_flag:  # all samples exist
+                    break
+                else:
+                    for video in videos:  # lets extract frames
+                        video_to_frames(video_path=os.path.join(self._videos_dir, video + '.mp4'),  # assuming .mp4
+                                        frames_dir=self._frames_dir,
+                                        chunk_size=1000)
+
+            samples = samples_exist
+
+            # load the class labels for each sample
+            labels = dict()
+            for video in videos:
+                labels[video] = dict()
+                with open(os.path.join(self._labels_dir, video + '.txt'), 'r') as f:
+                    lines = f.readlines()
+                    lines = [l.rstrip().split() for l in lines]
+
+                for line in lines:
+                    labels[video][int(line[0])] = line[1]
+
+            # a dict of the frames in the set for each video
+            in_set = dict()
+            for video in videos:
+                in_set[video] = list()
+
+            #  add class labels to each sample
+            for i in range(len(samples)):
+                samples[i].append(labels[samples[i][0]][samples[i][1]])
+                in_set[samples[i][0]].append(samples[i][1])
+
+            # load events (consecutive frames with same class label)
+            events = list()
+            for video in in_set.keys():
+                cur_class = 'O'
+                start_frame = -1
+                for frame in sorted(in_set[video]):
+                    if start_frame < 0:
+                        start_frame = frame
+                        last_frame = frame
+                    if labels[video][frame] != cur_class:
+                        events.append([video, start_frame, last_frame, cur_class])
+                        cur_class = labels[video][frame]
+                        start_frame = frame
+                    last_frame = frame
+
+                events.append([video, start_frame, last_frame, cur_class])  # add the last event
+
+            return samples, videos, events
+        else:
+            logging.info("Split {} does not exist, please make sure it exists to load a dataset.".format(splits_file))
+            return None, None
+
+    # def _get_video_lengths(self, videos):
+    #     """
+    #     get the video lengths
+    #
+    #     :return: the video lengths dictionary
+    #     """
+    #     lengths = dict()
+    #     for video in videos:
+    #         video_path = os.path.join(self._videos_dir, video)
+    #         assert os.path.exists(video_path)
+    #
+    #         # Use opencv to open the video
+    #         capture = cv2.VideoCapture(video_path)
+    #         total_f = capture.get(7)
+    #
+    #         capture.release()
+    #         lengths[video] = total_f
+    #
+    #     return lengths
+
+    def save_sample(self, idx, outputs=None):  # todo
+        sample = self._samples[idx]
+        img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
+        save_img_path = self.get_image_path(self.output_dir, sample[0], sample[1])
+
+        img = cv2.imread(img_path)
+
+        # for i, l in enumerate(label):
+        #     img[-20:, i*50:(i+1)*50, :] = 255*l
+        #
+        # if outputs is not None:
+        #     if isinstance(outputs, list):
+        #         logits = [int(np.argmax(o)) for o in outputs]  # multiple outputs
+        #     else:
+        #         logits = [int(np.argmax(outputs))]  # single output
+        #
+        # for i, l in enumerate(logits):
+        #     img[-40:-20, i*50:(i+1)*50, :] = 255*l
+
+        # Save the extracted image
+        os.makedirs(os.path.dirname(save_img_path), exist_ok=True)
+        cv2.imwrite(save_img_path, img)
+
+
+def main(_argv):
+
+    ts = TennisSet(split='val')  # used for debug
+    for x in ts:
+        print(x)
+    print(ts)
+
+
+if __name__ == '__main__':
+
+    try:
+        app.run(main)
+    except SystemExit:
+        pass
+
