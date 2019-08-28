@@ -312,8 +312,6 @@ def generate_labels(generalised_dir, labels_dir, videos):
     Returns:
         None
     """
-    labels = dict()
-    frames = dict()
 
     # load in the class names
     assert os.path.exists(os.path.join('data', 'classes.names'))
@@ -321,12 +319,14 @@ def generate_labels(generalised_dir, labels_dir, videos):
         lines = f.readlines()
     classes = [line.rstrip() for line in lines]
 
-    for class_ in classes:
-        frames[class_] = []
-
     annotations_dir = os.path.normpath(generalised_dir)  # make the paths OS (Windows) compatible
 
     for video in tqdm(videos, desc='Generating labels'):
+        labels = dict()
+        frames = dict()
+        for class_ in classes:
+            frames[class_] = []
+
         annotation_path = os.path.join(annotations_dir, video + '.json')
         # check annotation file exists, throw error if not
         if not os.path.exists(annotation_path):
@@ -381,11 +381,10 @@ def generate_labels(generalised_dir, labels_dir, videos):
         end = database['classes']['USE'][0]['end']
 
         for frame in range(start, end):
+            labels[frame] = 'O'
             for k, v in frames.items():
                 if frame in v:
                     labels[frame] = k
-                else:
-                    labels[frame] = 'O'
 
         # make the labels directory if it doesn't exist
         os.makedirs(labels_dir, exist_ok=True)
