@@ -148,6 +148,12 @@ def generalise_jsons(annotations_dir, generalised_dir, videos):
         # build arrays
         points = generate_points_list(database)
 
+        players = set()
+        for game in database['classes']['Game']:
+            players.add(game['custom']['Winner'])
+        players = list(players)
+        assert len(players) == 2
+
         # fix serves
         for serve in database['classes']['Serve']:
             start = int(serve['start'])
@@ -190,6 +196,8 @@ def generalise_jsons(annotations_dir, generalised_dir, videos):
                         swaps += int((sum(point_split) - 1) / 6)
 
             if swaps % 2 == 0:  # positions same as start of set
+                assert serve['custom']['Player'] in players, '{} not a valid player name {}' \
+                                                             ''.format(serve['custom']['Player'], near)
                 if serve['custom']['Player'] == near[sum(set_split) - 1]:
                     serve['custom']['Player'] = 'Near'
                 else:
@@ -242,54 +250,57 @@ def generalise_jsons(annotations_dir, generalised_dir, videos):
                         swaps += int((sum(point_split) - 1) / 6)
 
             if swaps % 2 == 0:  # positions same as start of set
+                assert hit['custom']['Player'] in players, '{} not a valid player name {}' \
+                                                           ''.format(hit['custom']['Player'], near)
                 if hit['custom']['Player'] == near[sum(set_split) - 1]:
                     if hit['custom']['Player'] in HANDER[0]:  # right HANDER near
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Right'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Left'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Right'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Left'
                     elif hit['custom']['Player'] in HANDER[1]:  # left HANDER near
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Left'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Right'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Left'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Right'
                     hit['custom']['Player'] = 'Near'
                 else:
                     if hit['custom']['Player'] in HANDER[0]:  # right HANDER far
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Left'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Right'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Left'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Right'
                     elif hit['custom']['Player'] in HANDER[1]:  # left HANDER far
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Right'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Left'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Right'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Left'
                     hit['custom']['Player'] = 'Far'
+
             else:  # positions opposite
                 if hit['custom']['Player'] == near[sum(set_split) - 1]:
                     if hit['custom']['Player'] in HANDER[0]:  # right HANDER far
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Left'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Right'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Left'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Right'
                     elif hit['custom']['Player'] in HANDER[1]:  # left HANDER far
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Right'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Left'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Right'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Left'
                     hit['custom']['Player'] = 'Far'
                 else:
                     if hit['custom']['Player'] in HANDER[0]:  # right HANDER near
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Right'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Left'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Right'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Left'
                     elif hit['custom']['Player'] in HANDER[1]:  # left HANDER near
-                        if hit['custom']['FB'] == 'Forehand':
-                            hit['custom']['FB'] = 'Left'
-                        elif hit['custom']['FB'] == 'Backhand':
-                            hit['custom']['FB'] = 'Right'
+                        if hit['custom']['Side'] == 'Forehand':
+                            hit['custom']['Side'] = 'Left'
+                        elif hit['custom']['Side'] == 'Backhand':
+                            hit['custom']['Side'] = 'Right'
                     hit['custom']['Player'] = 'Near'
 
         # write out the generalised version of the annotation file
@@ -354,6 +365,8 @@ def generate_labels(generalised_dir, labels_dir, videos):
                     frames['HNL'] += list(range(int(hit['start']), int(hit['end'])))
                 else:
                     return AttributeError
+            else:
+                return AttributeError
 
         for serve in database['classes']['Serve']:
             if serve['custom']['Player'] == 'Far':
@@ -375,6 +388,8 @@ def generate_labels(generalised_dir, labels_dir, videos):
                     frames['SNL'] += list(range(int(serve['start']), int(serve['end'])))
                 else:
                     return AttributeError
+            else:
+                return AttributeError
 
         # populate the labels dict with the classes
         start = database['classes']['USE'][0]['start']
