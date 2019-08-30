@@ -8,6 +8,7 @@ import numpy as np
 import os
 import shutil
 import sys
+from tensorboardX import SummaryWriter
 import time
 
 from mxnet import gluon, init
@@ -90,6 +91,9 @@ def main(_argv):
 
     key_flags = FLAGS.get_key_flags_for_module(sys.argv[0])
     logging.info('\n'.join(f.serialize() for f in key_flags))
+
+    # set up tensorboard summary writer
+    tb_sw = SummaryWriter(log_dir=os.path.join(log_dir, 'tb'), comment=FLAGS.model_id)
 
     # Data augmentation, will do in dataset incase window>1 and need to be applied image-wise
     jitter_param = 0.4
@@ -232,9 +236,6 @@ def main(_argv):
 
         tic = time.time()
         train_sum_loss = 0
-        train_play_loss = 0
-        train_serve_loss = 0
-        train_end_loss = 0
         for metric_set in metrics:
             for metric in metric_set:
                 metric[1].reset()
@@ -247,9 +248,6 @@ def main(_argv):
             labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
             sum_losses = []
-            play_losses = []
-            serve_losses = []
-            end_losses = []
             outputs = []
             with ag.record():
                 for ix, x in enumerate(data):  # loop over devices
@@ -262,8 +260,8 @@ def main(_argv):
             # step the optimizer
             trainer.step(FLAGS.batch_size)
 
-            # store the epoch loss sums
-            train_sum_loss += sum([l.mean().asscalar() for l in sum_losses]) / len(sum_losses)  # avg loss across batch (avg across devices)
+            # store the epoch loss sums - avg loss across batch (avg across devices)
+            train_sum_loss += sum([l.mean().asscalar() for l in sum_losses]) / len(sum_losses)
 
             # update metric
             if len(metrics) > 1:
@@ -280,8 +278,14 @@ def main(_argv):
                     epoch, i, num_batches, trainer.learning_rate, FLAGS.batch_size / (time.time() - btic))
 
                 str_ += ', {}={:.3f}'.format("loss:", train_sum_loss/(i*FLAGS.batch_size))
+                tb_sw.add_scalar(tag='Training_loss',
+                                 scalar_value=train_sum_loss/(i*FLAGS.batch_size),
+                                 global_step=(epoch * len(train_data) + i))
                 for mi, metric in enumerate(metrics[0]):
                     str_ += ', {}={:.3f}'.format(metric[0], metric[1].get()[1])
+                    tb_sw.add_scalar(tag='Training_{}'.format(metric[0]),
+                                     scalar_value=float(metric[1].get()[1]),
+                                     global_step=(epoch * len(train_data) + i))
                 logging.info(str_)
 
         # Format end of epoch logging string getting metrics along the way
@@ -298,12 +302,16 @@ def main(_argv):
         for li, metric_set in enumerate(val_metrics):
             for mi, metric in enumerate(metric_set):
                 str_ += ', Val_{}={:.3f}'.format(metric[0], val_accs[li][mi])
+                tb_sw.add_scalar(tag='Val_{}'.format(metric[0]),
+                                 scalar_value=float(val_accs[li][mi]),
+                                 global_step=(epoch * len(train_data)))
 
         str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
 
         logging.info(str_)
 
-        model.save_parameters(os.path.join('models', FLAGS.model_id, "{:04d}_{:.4f}.params".format(epoch, val_accs[0][0])))
+        model.save_parameters(os.path.join('models', FLAGS.model_id,
+                                           "{:04d}_{:.4f}.params".format(epoch, val_accs[0][0])))
 
     # model training complete, test it
     tic = time.time()
