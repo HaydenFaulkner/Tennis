@@ -32,6 +32,8 @@ class TennisSet:
         if self._balance:
             self._samples = self._balance_classes()
 
+        self._video_lengths = self._get_video_lengths()
+
     def __str__(self):
         return '\n\n' + self.__class__.__name__ + '\n' + self.stats() + '\n'
 
@@ -77,7 +79,7 @@ class TennisSet:
             window_offsets = list(range(int(-self._window[0]/2), int(self._window[0]/2)+1))
             for offset in window_offsets:
                 # need to get max frame for video, has to be an 'every' frame
-                max_frame = self._video_lengths[sample[0]]-2-self._every
+                max_frame = self._video_lengths[sample[0]]-self._every
                 for i in range(self._every):
                     if (max_frame - i) % self._every == 0:
                         max_frame -= i
@@ -255,25 +257,36 @@ class TennisSet:
             logging.info("Split {} does not exist, please make sure it exists to load a dataset.".format(splits_file))
             return None, None
 
-    # def _get_video_lengths(self, videos):
-    #     """
-    #     get the video lengths
-    #
-    #     :return: the video lengths dictionary
-    #     """
-    #     lengths = dict()
-    #     for video in videos:
-    #         video_path = os.path.join(self._videos_dir, video)
-    #         assert os.path.exists(video_path)
-    #
-    #         # Use opencv to open the video
-    #         capture = cv2.VideoCapture(video_path)
-    #         total_f = capture.get(7)
-    #
-    #         capture.release()
-    #         lengths[video] = total_f
-    #
-    #     return lengths
+    def _get_video_lengths(self):
+        """
+        get the video lengths
+
+        :return: the video lengths dictionary
+        """
+        lengths = dict()
+        for sample in self._samples:
+            video_name = sample[0]
+            if video_name not in lengths:
+                largest_dir = sorted(os.listdir(os.path.join(self._frames_dir, video_name + '.mp4')))[-1]
+                assert largest_dir.isdigit(), "Expects the directory {} to only contain numbered subdirs".format(
+                    os.path.join(self._frames_dir, video_name + '.mp4'))
+                largest_file = sorted(os.listdir(os.path.join(self._frames_dir, video_name + '.mp4', largest_dir)))[-1]
+                lengths[video_name] = int(largest_file[:-4])
+
+
+        # old way, loading the video
+        # for video in videos:
+        #     video_path = os.path.join(self._videos_dir, video)
+        #     assert os.path.exists(video_path)
+        #
+        #     # Use opencv to open the video
+        #     capture = cv2.VideoCapture(video_path)
+        #     total_f = capture.get(7)
+        #
+        #     capture.release()
+        #     lengths[video] = total_f
+
+        return lengths
 
     def save_sample(self, idx, outputs=None):  # todo
         sample = self._samples[idx]
