@@ -46,7 +46,7 @@ flags.DEFINE_list('balance', 'True, False, False',
 
 flags.DEFINE_integer('batch_size', 128,
                      'Batch size for detection: higher faster, but more memory intensive.')
-flags.DEFINE_integer('epochs', 10,
+flags.DEFINE_integer('epochs', 5,
                      'How many training epochs to complete')
 flags.DEFINE_integer('num_gpus', 1,
                      'Number of GPUs to use')
@@ -176,7 +176,7 @@ def main(_argv):
         if len(files) > 0:
             files = sorted(files, reverse=True)  # put latest model first
             model_name = files[0]
-            start_epoch = int(model_name.split('_')[0]) + 1
+            start_epoch = int(model_name.split('.')[0]) + 1
             model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
             logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
 
@@ -301,28 +301,35 @@ def main(_argv):
             # Format end of epoch logging string getting metrics along the way
             str_ = '[Epoch {}]'.format(epoch)
 
-            for metric_set in metrics:
-                for metric in metric_set:
-                    result = metric.get()
-                    if not isinstance(result, list):
-                        result = [result]
-                    for res in result:
-                        str_ += ', Train_{}={:.3f}'.format(res[0], res[1])
+            for metric in metrics:
+                result = metric.get()
+                if not isinstance(result, list):
+                    result = [result]
+                for res in result:
+                    str_ += ', Train_{}={:.3f}'.format(res[0], res[1])
 
             str_ += ', loss: {:.3f}'.format(train_sum_loss / len(train_data))
 
             vtic = time.time()
             _ = test_model(model, val_data, val_set, val_metrics, ctx)
-            for metric_set in val_metrics:
-                for metric in metric_set:
-                    result = metric.get()
-                    if not isinstance(result, list):
-                        result = [result]
-                    for res in result:
-                        str_ += ', Val_{}={:.3f}'.format(res[0], res[1])
-                        tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
-                                         scalar_value=float(res[1]),
-                                         global_step=(epoch * len(train_data)))
+
+            str_2 = 'Val set:'
+            for i in range(len(train_set.classes)):
+                str_2 += '\n'
+                for j in range(len(train_set.classes)):
+                    str_2 += str(val_metrics[4].mat[i, j]) + '\t'
+            print(str_2)
+
+            for metric in val_metrics:
+                result = metric.get()
+                if not isinstance(result, list):
+                    result = [result]
+                for res in result:
+                    str_ += ', Val_{}={:.3f}'.format(res[0], res[1])
+                    tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
+                                     scalar_value=float(res[1]),
+                                     global_step=(epoch * len(train_data)))
+                metric.reset()
 
             str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
 
@@ -334,14 +341,27 @@ def main(_argv):
     tic = time.time()
     _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
+    str_ = 'Train set:'
+    for i in range(len(train_set.classes)):
+        str_ += '\n'
+        for j in range(len(train_set.classes)):
+            str_ += str(metrics[4].mat[i, j]) + '\t'
+    print(str_)
+    str_ = 'Test set:'
+    for i in range(len(train_set.classes)):
+        str_ += '\n'
+        for j in range(len(train_set.classes)):
+            str_ += str(test_metrics[4].mat[i, j]) + '\t'
+    print(str_)
+
     str_ = '[Finished] '
-    for metric_set in test_metrics:
-        for metric in metric_set:
-            result = metric.get()
-            if not isinstance(result, list):
-                result = [result]
-            for res in result:
-                str_ += ', Test_{}={:.3f}'.format(res[0], res[1])
+    for metric in test_metrics:
+        result = metric.get()
+        if not isinstance(result, list):
+            result = [result]
+        for res in result:
+            str_ += ', Test_{}={:.3f}'.format(res[0], res[1])
+        metric.reset()
 
     str_ += '  # Samples: {}, Time Taken: {:.1f}'.format(len(test_set), time.time() - tic)
     logging.info(str_)

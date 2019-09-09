@@ -22,6 +22,7 @@ class PRF1(mx.metric.EvalMetric):
         self.axis = axis
         self.label_names = label_names
         self.scores = np.zeros((3, len(label_names)))
+        self.mat = np.zeros((len(label_names), len(label_names)))
 
     def update(self, labels, preds):
         """
@@ -44,14 +45,17 @@ class PRF1(mx.metric.EvalMetric):
 
             labels, preds = check_label_shapes(label, pred_label)
 
+            for i in range(len(labels)):
+                self.mat[labels[i], preds[i]] += 1
+
             for i, _ in enumerate(self.label_names):
                 predictions = (preds.reshape(-1, 1) == i).all(axis=-1)
                 positives = (labels.reshape(-1, 1) == i).all(axis=-1)
                 matches = np.logical_and(predictions, positives)
 
-                self.scores[0, i] = matches.sum()
-                self.scores[1, i] = positives.sum()
-                self.scores[2, i] = predictions.sum()
+                self.scores[0, i] += matches.sum()
+                self.scores[1, i] += positives.sum()
+                self.scores[2, i] += predictions.sum()
 
     def get(self):
         """
@@ -74,4 +78,8 @@ class PRF1(mx.metric.EvalMetric):
         return scores
 
     def reset(self):
+        """
+        Reset the metric state
+        """
         self.scores = np.zeros((3, len(self.label_names)))
+        self.mat = np.zeros((len(self.label_names), len(self.label_names)))
