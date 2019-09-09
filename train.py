@@ -16,9 +16,11 @@ from mxnet import autograd as ag
 from mxnet.gluon import nn
 from mxnet.gluon.data.vision import transforms
 from gluoncv.model_zoo import get_model
+from gluoncv.utils.metrics.accuracy import Accuracy
 
 from model import TimeModel, FrameModel
 from dataset import TennisSet
+from metrics import PRF1
 # from utils import frames_to_video
 
 # disable autotune
@@ -183,9 +185,26 @@ def main(_argv):
                             {'learning_rate': FLAGS.lr, 'momentum': FLAGS.momentum, 'wd': FLAGS.wd})
 
     # Setup Metric/s
-    metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
-    val_metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
-    test_metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
+    metrics = [Accuracy(label_names=train_set.classes),
+               mx.metric.TopKAccuracy(5, label_names=train_set.classes),
+               Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
+               Accuracy(name='accuracy_o', label_names=train_set.classes[0],
+                        ignore_labels=list(range(1, len(train_set.classes)))),
+               PRF1(label_names=train_set.classes)]
+
+    val_metrics = [Accuracy(label_names=train_set.classes),
+                   mx.metric.TopKAccuracy(5, label_names=train_set.classes),
+                   Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
+                   Accuracy(name='accuracy_o', label_names=train_set.classes[0],
+                            ignore_labels=list(range(1, len(train_set.classes)))),
+                   PRF1(label_names=train_set.classes)]
+
+    test_metrics = [Accuracy(label_names=train_set.classes),
+                    mx.metric.TopKAccuracy(5, label_names=train_set.classes),
+                    Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
+                    Accuracy(name='accuracy_o', label_names=train_set.classes[0],
+                             ignore_labels=list(range(1, len(train_set.classes)))),
+                    PRF1(label_names=train_set.classes)]
 
     # Setup Loss/es
     loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
@@ -199,13 +218,8 @@ def main(_argv):
             idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
             outputs = [net(x) for x in data]
 
-            if len(metrics) > 1:
-                for li, metric_set in enumerate(metrics):
-                    for mi, metric in enumerate(metric_set):
-                        metric[1].update([l[:, li] for l in labels], [o[li] for o in outputs])
-            else:
-                for mi, metric in enumerate(metrics[0]):
-                    metric[1].update(labels, outputs)
+            for metric in metrics:
+                metric.update(labels, outputs)
 
             if vis:
                 # save the images with labels
@@ -220,14 +234,7 @@ def main(_argv):
                         for i in range(len(idxs)):  # loop over samples
                             dataset.save_sample(idxs[i], output[i])
 
-        results = []
-        for metric_set in metrics:  # loop through the number or losses/metrics
-            metric_results = []
-            for metric in metric_set:  # loop through acc and F1
-                metric_results.append(metric[1].get()[1])
-            results.append(metric_results)
-
-        return results
+        return metrics
 
     if FLAGS.epochs > 0:
         # Training loop
@@ -241,9 +248,8 @@ def main(_argv):
 
             tic = time.time()
             train_sum_loss = 0
-            for metric_set in metrics:
-                for metric in metric_set:
-                    metric[1].reset()
+            for metric in metrics:
+                metric.reset()
 
             for i, batch in enumerate(train_data):  # loop over batches
                 btic = time.time()
@@ -269,13 +275,8 @@ def main(_argv):
                 train_sum_loss += sum([l.mean().asscalar() for l in sum_losses]) / len(sum_losses)
 
                 # update metric
-                if len(metrics) > 1:
-                    for li, metric_set in enumerate(metrics):
-                        for mi, metric in enumerate(metric_set):
-                            metric[1].update([l[:, li] for l in labels], [o[li] for o in outputs])
-                else:
-                    for mi, metric in enumerate(metrics[0]):
-                        metric[1].update(labels, outputs)
+                for metric in metrics:
+                    metric.update(labels, outputs)
 
                 # logging
                 if FLAGS.log_interval and not (i + 1) % FLAGS.log_interval:
@@ -286,46 +287,61 @@ def main(_argv):
                     tb_sw.add_scalar(tag='Training_loss',
                                      scalar_value=train_sum_loss/(i*FLAGS.batch_size),
                                      global_step=(epoch * len(train_data) + i))
-                    for mi, metric in enumerate(metrics[0]):
-                        str_ += ', {}={:.3f}'.format(metric[0], metric[1].get()[1])
-                        tb_sw.add_scalar(tag='Training_{}'.format(metric[0]),
-                                         scalar_value=float(metric[1].get()[1]),
-                                         global_step=(epoch * len(train_data) + i))
+                    for metric in metrics:
+                        result = metric.get()
+                        if not isinstance(result, list):
+                            result = [result]
+                        for res in result:
+                            str_ += ', {}={:.3f}'.format(res[0], res[1])
+                            tb_sw.add_scalar(tag='Training_{}'.format(res[0]),
+                                             scalar_value=float(res[1]),
+                                             global_step=(epoch * len(train_data) + i))
                     logging.info(str_)
 
             # Format end of epoch logging string getting metrics along the way
             str_ = '[Epoch {}]'.format(epoch)
 
-            for li, metric_set in enumerate(metrics):
-                for mi, metric in enumerate(metric_set):
-                    str_ += ', Train_{}={:.3f}'.format(metric[0], metric[1].get()[1])
+            for metric_set in metrics:
+                for metric in metric_set:
+                    result = metric.get()
+                    if not isinstance(result, list):
+                        result = [result]
+                    for res in result:
+                        str_ += ', Train_{}={:.3f}'.format(res[0], res[1])
 
             str_ += ', loss: {:.3f}'.format(train_sum_loss / len(train_data))
 
             vtic = time.time()
-            val_accs = test_model(model, val_data, val_set, val_metrics, ctx)
-            for li, metric_set in enumerate(val_metrics):
-                for mi, metric in enumerate(metric_set):
-                    str_ += ', Val_{}={:.3f}'.format(metric[0], val_accs[li][mi])
-                    tb_sw.add_scalar(tag='Val_{}'.format(metric[0]),
-                                     scalar_value=float(val_accs[li][mi]),
-                                     global_step=(epoch * len(train_data)))
+            _ = test_model(model, val_data, val_set, val_metrics, ctx)
+            for metric_set in val_metrics:
+                for metric in metric_set:
+                    result = metric.get()
+                    if not isinstance(result, list):
+                        result = [result]
+                    for res in result:
+                        str_ += ', Val_{}={:.3f}'.format(res[0], res[1])
+                        tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
+                                         scalar_value=float(res[1]),
+                                         global_step=(epoch * len(train_data)))
 
             str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
 
             logging.info(str_)
 
-            model.save_parameters(os.path.join('models', FLAGS.model_id,
-                                               "{:04d}_{:.4f}.params".format(epoch, val_accs[0][0])))
+            model.save_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(epoch)))
 
     # model training complete, test it
     tic = time.time()
-    test_accs = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
+    _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
     str_ = '[Finished] '
-    for li, metric_set in enumerate(test_metrics):
-        for mi, metric in enumerate(metric_set):
-            str_ += ', Test_{}={:.3f}'.format(metric[0], test_accs[li][mi])
+    for metric_set in test_metrics:
+        for metric in metric_set:
+            result = metric.get()
+            if not isinstance(result, list):
+                result = [result]
+            for res in result:
+                str_ += ', Test_{}={:.3f}'.format(res[0], res[1])
 
     str_ += '  # Samples: {}, Time Taken: {:.1f}'.format(len(test_set), time.time() - tic)
     logging.info(str_)
