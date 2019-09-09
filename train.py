@@ -64,6 +64,9 @@ flags.DEFINE_float('momentum', 0.9,
 flags.DEFINE_float('wd', 0.0001,
                    'weight decay.')
 
+flags.DEFINE_bool('vis', False,
+                  'Visualise testing results')
+
 
 def main(_argv):
     FLAGS.window = [int(s) for s in FLAGS.window]
@@ -76,7 +79,6 @@ def main(_argv):
         FLAGS.num_workers = multiprocessing.cpu_count()
 
     ctx = [mx.gpu(i) for i in range(FLAGS.num_gpus)] if FLAGS.num_gpus > 0 else [mx.cpu()]
-    classes = 2
 
     # Set up logging
     logging.basicConfig()
@@ -148,7 +150,7 @@ def main(_argv):
         # model.collect_params().reset_ctx(ctx)
         # model.hybridize()
         # original
-        model = FrameModel(finetune_net, classes)
+        model = FrameModel(finetune_net, len(train_set.classes))
         model.initialize(init.Xavier(), ctx=ctx)
         model.collect_params().reset_ctx(ctx)
         model.hybridize()
@@ -158,10 +160,12 @@ def main(_argv):
             finetune_net.output = nn.Dense(256)
         finetune_net.output.initialize(init.Xavier(), ctx=ctx)
 
-        model = TimeModel(finetune_net, classes)
+        model = TimeModel(finetune_net, len(train_set.classes))
         model.initialize(init.Xavier(), ctx)
         model.collect_params().reset_ctx(ctx)
         # model.hybridize()  # hybridize doesn't work for this model
+
+    # logging.info(model.summary())
 
     start_epoch = 0
     if os.path.exists(os.path.join('models', FLAGS.model_id)):
@@ -179,12 +183,12 @@ def main(_argv):
                             {'learning_rate': FLAGS.lr, 'momentum': FLAGS.momentum, 'wd': FLAGS.wd})
 
     # Setup Metric/s
-    metrics = [(('acc', mx.metric.Accuracy()), )]
-    val_metrics = [(('acc', mx.metric.Accuracy()), )]
-    test_metrics = [(('acc', mx.metric.Accuracy()), )]
+    metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
+    val_metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
+    test_metrics = [(('acc', mx.metric.Accuracy()), ('t5 acc', mx.metric.TopKAccuracy(5)))]
 
     # Setup Loss/es
-    play_loss = gluon.loss.SoftmaxCrossEntropyLoss()
+    loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
     # Testing/Validation function
     def test_model(net, loader, dataset, metrics, ctx, vis=False):
@@ -225,97 +229,98 @@ def main(_argv):
 
         return results
 
-    # Training loop
-    lr_counter = 0
-    num_batches = int(len(train_set)/FLAGS.batch_size)
-    for epoch in range(start_epoch, FLAGS.epochs):  # loop over epochs
-        logging.info('[Starting Epoch {}]'.format(epoch))
-        if epoch == FLAGS.lr_steps[lr_counter]:
-            trainer.set_learning_rate(trainer.learning_rate*FLAGS.lr_factor)
-            lr_counter += 1
+    if FLAGS.epochs > 0:
+        # Training loop
+        lr_counter = 0
+        num_batches = int(len(train_set)/FLAGS.batch_size)
+        for epoch in range(start_epoch, FLAGS.epochs):  # loop over epochs
+            logging.info('[Starting Epoch {}]'.format(epoch))
+            if epoch == FLAGS.lr_steps[lr_counter]:
+                trainer.set_learning_rate(trainer.learning_rate*FLAGS.lr_factor)
+                lr_counter += 1
 
-        tic = time.time()
-        train_sum_loss = 0
-        for metric_set in metrics:
-            for metric in metric_set:
-                metric[1].reset()
+            tic = time.time()
+            train_sum_loss = 0
+            for metric_set in metrics:
+                for metric in metric_set:
+                    metric[1].reset()
 
-        for i, batch in enumerate(train_data):  # loop over batches
-            btic = time.time()
+            for i, batch in enumerate(train_data):  # loop over batches
+                btic = time.time()
 
-            # split data across devices
-            data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-            labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+                # split data across devices
+                data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+                labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
-            sum_losses = []
-            outputs = []
-            with ag.record():
-                for ix, x in enumerate(data):  # loop over devices
-                    output = model(x)
-                    outputs.append(output)
-                    sum_losses.append(play_loss(output, labels[ix]))
+                sum_losses = []
+                outputs = []
+                with ag.record():
+                    for ix, x in enumerate(data):  # loop over devices
+                        output = model(x)
+                        outputs.append(output)
+                        sum_losses.append(loss_fn(output, labels[ix]))
 
-                ag.backward(sum_losses)
+                    ag.backward(sum_losses)
 
-            # step the optimizer
-            trainer.step(FLAGS.batch_size)
+                # step the optimizer
+                trainer.step(FLAGS.batch_size)
 
-            # store the epoch loss sums - avg loss across batch (avg across devices)
-            train_sum_loss += sum([l.mean().asscalar() for l in sum_losses]) / len(sum_losses)
+                # store the epoch loss sums - avg loss across batch (avg across devices)
+                train_sum_loss += sum([l.mean().asscalar() for l in sum_losses]) / len(sum_losses)
 
-            # update metric
-            if len(metrics) > 1:
-                for li, metric_set in enumerate(metrics):
-                    for mi, metric in enumerate(metric_set):
-                        metric[1].update([l[:, li] for l in labels], [o[li] for o in outputs])
-            else:
-                for mi, metric in enumerate(metrics[0]):
-                    metric[1].update(labels, outputs)
+                # update metric
+                if len(metrics) > 1:
+                    for li, metric_set in enumerate(metrics):
+                        for mi, metric in enumerate(metric_set):
+                            metric[1].update([l[:, li] for l in labels], [o[li] for o in outputs])
+                else:
+                    for mi, metric in enumerate(metrics[0]):
+                        metric[1].update(labels, outputs)
 
-            # logging
-            if FLAGS.log_interval and not (i + 1) % FLAGS.log_interval:
-                str_ = '[Epoch {}][Batch {}/{}], LR: {:.2E}, Speed: {:.3f} samples/sec'.format(
-                    epoch, i, num_batches, trainer.learning_rate, FLAGS.batch_size / (time.time() - btic))
+                # logging
+                if FLAGS.log_interval and not (i + 1) % FLAGS.log_interval:
+                    str_ = '[Epoch {}][Batch {}/{}], LR: {:.2E}, Speed: {:.3f} samples/sec'.format(
+                        epoch, i, num_batches, trainer.learning_rate, FLAGS.batch_size / (time.time() - btic))
 
-                str_ += ', {}={:.3f}'.format("loss:", train_sum_loss/(i*FLAGS.batch_size))
-                tb_sw.add_scalar(tag='Training_loss',
-                                 scalar_value=train_sum_loss/(i*FLAGS.batch_size),
-                                 global_step=(epoch * len(train_data) + i))
-                for mi, metric in enumerate(metrics[0]):
-                    str_ += ', {}={:.3f}'.format(metric[0], metric[1].get()[1])
-                    tb_sw.add_scalar(tag='Training_{}'.format(metric[0]),
-                                     scalar_value=float(metric[1].get()[1]),
+                    str_ += ', {}={:.3f}'.format("loss:", train_sum_loss/(i*FLAGS.batch_size))
+                    tb_sw.add_scalar(tag='Training_loss',
+                                     scalar_value=train_sum_loss/(i*FLAGS.batch_size),
                                      global_step=(epoch * len(train_data) + i))
-                logging.info(str_)
+                    for mi, metric in enumerate(metrics[0]):
+                        str_ += ', {}={:.3f}'.format(metric[0], metric[1].get()[1])
+                        tb_sw.add_scalar(tag='Training_{}'.format(metric[0]),
+                                         scalar_value=float(metric[1].get()[1]),
+                                         global_step=(epoch * len(train_data) + i))
+                    logging.info(str_)
 
-        # Format end of epoch logging string getting metrics along the way
-        str_ = '[Epoch {}]'.format(epoch)
+            # Format end of epoch logging string getting metrics along the way
+            str_ = '[Epoch {}]'.format(epoch)
 
-        for li, metric_set in enumerate(metrics):
-            for mi, metric in enumerate(metric_set):
-                str_ += ', Train_{}={:.3f}'.format(metric[0], metric[1].get()[1])
+            for li, metric_set in enumerate(metrics):
+                for mi, metric in enumerate(metric_set):
+                    str_ += ', Train_{}={:.3f}'.format(metric[0], metric[1].get()[1])
 
-        str_ += ', loss: {:.3f}'.format(train_sum_loss / len(train_data))
+            str_ += ', loss: {:.3f}'.format(train_sum_loss / len(train_data))
 
-        vtic = time.time()
-        val_accs = test_model(model, val_data, val_set, val_metrics, ctx)
-        for li, metric_set in enumerate(val_metrics):
-            for mi, metric in enumerate(metric_set):
-                str_ += ', Val_{}={:.3f}'.format(metric[0], val_accs[li][mi])
-                tb_sw.add_scalar(tag='Val_{}'.format(metric[0]),
-                                 scalar_value=float(val_accs[li][mi]),
-                                 global_step=(epoch * len(train_data)))
+            vtic = time.time()
+            val_accs = test_model(model, val_data, val_set, val_metrics, ctx)
+            for li, metric_set in enumerate(val_metrics):
+                for mi, metric in enumerate(metric_set):
+                    str_ += ', Val_{}={:.3f}'.format(metric[0], val_accs[li][mi])
+                    tb_sw.add_scalar(tag='Val_{}'.format(metric[0]),
+                                     scalar_value=float(val_accs[li][mi]),
+                                     global_step=(epoch * len(train_data)))
 
-        str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
+            str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
 
-        logging.info(str_)
+            logging.info(str_)
 
-        model.save_parameters(os.path.join('models', FLAGS.model_id,
-                                           "{:04d}_{:.4f}.params".format(epoch, val_accs[0][0])))
+            model.save_parameters(os.path.join('models', FLAGS.model_id,
+                                               "{:04d}_{:.4f}.params".format(epoch, val_accs[0][0])))
 
     # model training complete, test it
     tic = time.time()
-    test_accs = test_model(model, test_data, test_set, test_metrics, ctx, vis=False)
+    test_accs = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
     str_ = '[Finished] '
     for li, metric_set in enumerate(test_metrics):
