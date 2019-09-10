@@ -396,7 +396,7 @@ def generate_labels(generalised_dir, labels_dir, videos):
         end = database['classes']['USE'][0]['end']
 
         for frame in range(start, end):
-            labels[frame] = 'O'
+            labels[frame] = 'OTH'
             for k, v in frames.items():
                 if frame in v:
                     labels[frame] = k

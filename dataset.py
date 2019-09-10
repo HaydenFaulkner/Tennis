@@ -9,8 +9,8 @@ from utils.video import video_to_frames
 
 
 class TennisSet:
-    def __init__(self, root='data', transform=None, split='train', every=5, balance=True,
-                 padding=1, window=[1, 5], model_id='0000', split_id='01'):
+    def __init__(self, root='data', transform=None, split='train', every=1, balance=True,
+                 padding=1, window=[1, 1], model_id='0000', split_id='01'):
         self._root = root
         self._split = split
         self._balance = balance
@@ -137,7 +137,7 @@ class TennisSet:
 
         balanced = list()
         for sample in self._samples:
-            if sample[2] == 'O' and random.uniform(0, 1) > ratio:
+            if sample[2] == 'OTH' and random.uniform(0, 1) > ratio:
                 continue
             balanced.append(sample)
         samples = balanced
@@ -238,7 +238,7 @@ class TennisSet:
             # load events (consecutive frames with same class label)
             events = list()
             for video in in_set.keys():
-                cur_class = 'O'
+                cur_class = 'OTH'
                 start_frame = -1
                 for frame in sorted(in_set[video]):
                     if start_frame < 0:
@@ -314,10 +314,8 @@ class TennisSet:
 
 def main(_argv):
 
-    ts = TennisSet(split='val')  # used for debug
-    for x in ts:
-        print(x)
-    print(ts)
+    ts = TennisSet(split='train', balance=False, split_id='02')  # used for debug
+    print(ts.stats())
 
 
 if __name__ == '__main__':
