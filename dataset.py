@@ -9,13 +9,14 @@ from utils.video import video_to_frames
 
 
 class TennisSet:
-    def __init__(self, root='data', transform=None, split='train', every=1, balance=True,
-                 padding=1, window=[1, 1], model_id='0000', split_id='01'):
+    def __init__(self, root='data', transform=None, split='train', every=1, balance=True, padding=1, stride=1, window=1,
+                 model_id='0000', split_id='01'):
         self._root = root
         self._split = split
         self._balance = balance
         self._every = every  # only get every nth frame from a video
-        self._padding = padding  # sample padding around event boundaries
+        self._padding = padding  # temporal padding around event boundaries
+        self._stride = stride  # temporal stride for frame sampling
         self._window = window  # input frame volume size =1:frames >1:clip, sample not frame based
         self._transform = transform
 
@@ -74,9 +75,9 @@ class TennisSet:
         img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
         label = self.classes.index(sample[2])
 
-        if self._window[0] > 1:
+        if self._window > 1:
             imgs = None
-            window_offsets = list(range(int(-self._window[0]/2), int(self._window[0]/2)+1))
+            window_offsets = list(range(int(-self._window/2), int(self._window/2)+1))
             for offset in window_offsets:
                 # need to get max frame for video, has to be an 'every' frame
                 max_frame = self._video_lengths[sample[0]]-self._every
@@ -84,7 +85,7 @@ class TennisSet:
                     if (max_frame - i) % self._every == 0:
                         max_frame -= i
                         break
-                frame = min(max(0, sample[1]+offset*self._window[1]), int(max_frame))  # bound the frame
+                frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
                 img_path = self.get_image_path(self._frames_dir, sample[0], frame)
                 img = mx.image.imread(img_path, 1)
 
@@ -272,18 +273,6 @@ class TennisSet:
                     os.path.join(self._frames_dir, video_name + '.mp4'))
                 largest_file = sorted(os.listdir(os.path.join(self._frames_dir, video_name + '.mp4', largest_dir)))[-1]
                 lengths[video_name] = int(largest_file[:-4])
-
-        # old way, loading the video
-        # for video in videos:
-        #     video_path = os.path.join(self._videos_dir, video)
-        #     assert os.path.exists(video_path)
-        #
-        #     # Use opencv to open the video
-        #     capture = cv2.VideoCapture(video_path)
-        #     total_f = capture.get(7)
-        #
-        #     capture.release()
-        #     lengths[video] = total_f
 
         return lengths
 
