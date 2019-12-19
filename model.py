@@ -1,5 +1,5 @@
 """
-Defines the custom model and layer specification
+Defines the model specifications
 """
 import mxnet as mx
 from mxnet.gluon import HybridBlock, nn
@@ -19,7 +19,7 @@ class FrameModel(HybridBlock):
         super(FrameModel, self).__init__(**kwargs)
         with self.name_scope():
             self.backbone = backbone.features
-            self.classes = nn.Dense(num_classes, flatten=True)
+            self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
         x = self.backbone(x)
@@ -41,11 +41,11 @@ class TimeModel(HybridBlock):
         with self.name_scope():
             self.td = TimeDistributed(backbone.features)
             self.gru = mx.gluon.rnn.GRU(hidden_size, layout="NTC", bidirectional=True)
-            self.classes = nn.Dense(num_classes, flatten=True)
+            self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
         x = self.td(x)
-        x = self.gru(x)
+        x = self.gru(x.squeeze(axis=-1).squeeze(axis=-1))
         x = F.max(x, axis=1)
         x = self.classes(x)
         return x

@@ -10,6 +10,7 @@ import shutil
 import sys
 from tensorboardX import SummaryWriter
 import time
+import warnings
 
 from mxnet import gluon, init
 from mxnet import autograd as ag
@@ -34,17 +35,21 @@ flags.DEFINE_string('split_id', '01',
                     'split identification string, 01: single test vid; 02: all videos have test sections')
 flags.DEFINE_integer('log_interval', 100,
                      'Logging mini-batch interval.')
+flags.DEFINE_integer('data_shape', 512, #224,
+                     'The width and height for the input image to be cropped to.')
 
-flags.DEFINE_list('window', '1, 1',
-                  'Temporal window size of frames and the frame gap of the windows samples')
 flags.DEFINE_list('every', '1, 1, 1',
                   'Use only every this many frames: [train, val, test] splits')
-flags.DEFINE_list('padding', '1, 1, 1',
-                  'Frame*every + and - padding around the marked event boundaries: [train, val, test] splits')
 flags.DEFINE_list('balance', 'True, False, False',
                   'Balance the play/not class samples: [train, val, test] splits')
+flags.DEFINE_integer('window', 1,
+                     'Temporal window size of frames')
+flags.DEFINE_integer('padding', 1,
+                     'Frame*every + and - padding around the marked event boundaries: [train, val, test] splits')
+flags.DEFINE_integer('stride', 1,
+                     'Temporal stride of samples within a window')
 
-flags.DEFINE_integer('batch_size', 128,
+flags.DEFINE_integer('batch_size', 64,
                      'Batch size for detection: higher faster, but more memory intensive.')
 flags.DEFINE_integer('epochs', 5,
                      'How many training epochs to complete')
@@ -71,9 +76,7 @@ flags.DEFINE_bool('vis', False,
 
 
 def main(_argv):
-    FLAGS.window = [int(s) for s in FLAGS.window]
     FLAGS.every = [int(s) for s in FLAGS.every]
-    FLAGS.padding = [int(s) for s in FLAGS.padding]
     FLAGS.balance = [True if s.lower() == 'true' or s.lower() == 't' else False for s in FLAGS.balance]
     FLAGS.lr_steps = [int(s) for s in FLAGS.lr_steps]
 
@@ -104,7 +107,7 @@ def main(_argv):
     lighting_param = 0.1
 
     transform_train = transforms.Compose([
-        transforms.RandomResizedCrop(224),
+        transforms.RandomResizedCrop(FLAGS.data_shape),
         transforms.RandomFlipLeftRight(),
         transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
                                      saturation=jitter_param),
@@ -114,19 +117,22 @@ def main(_argv):
     ])
 
     transform_test = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize(FLAGS.data_shape + 32),
+        transforms.CenterCrop(FLAGS.data_shape),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
     # Load datasets
-    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding[0],
-                          window=FLAGS.window, model_id=FLAGS.model_id, balance=True, split_id=FLAGS.split_id)
-    val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding[1],
-                        window=FLAGS.window, model_id=FLAGS.model_id, balance=False, split_id=FLAGS.split_id)
-    test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding[2],
-                         window=FLAGS.window, model_id=FLAGS.model_id, balance=False, split_id=FLAGS.split_id)
+    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
+                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
+                          balance=True)
+    val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
+                        stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
+                        balance=False)
+    test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
+                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
+                         balance=False)
 
     logging.info(train_set)
     logging.info(val_set)
@@ -143,31 +149,22 @@ def main(_argv):
     # Define Model
     finetune_net = get_model(FLAGS.backbone, pretrained=True)
 
-    if FLAGS.window[0] == 1:
-        # # original
-        # model = finetune_net
-        # with model.name_scope():
-        #     model.output = nn.Dense(classes)
-        # model.output.initialize(init.Xavier(), ctx=ctx)
-        # model.collect_params().reset_ctx(ctx)
-        # model.hybridize()
-        # original
+    if FLAGS.window == 1:  # Framewise Model
         model = FrameModel(finetune_net, len(train_set.classes))
-        model.initialize(init.Xavier(), ctx=ctx)
-        model.collect_params().reset_ctx(ctx)
-        model.hybridize()
-    else:
-        # Time Distributed RNN
-        with finetune_net.name_scope():
-            finetune_net.output = nn.Dense(256)
-        finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-
+    else:  # Time Distributed RNN
         model = TimeModel(finetune_net, len(train_set.classes))
-        model.initialize(init.Xavier(), ctx)
-        model.collect_params().reset_ctx(ctx)
-        # model.hybridize()  # hybridize doesn't work for this model
 
-    # logging.info(model.summary())
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        model.initialize()
+
+    if FLAGS.window == 1:
+        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
+    else:
+        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
+
+    model.collect_params().reset_ctx(ctx)
+    model.hybridize()
 
     start_epoch = 0
     if os.path.exists(os.path.join('models', FLAGS.model_id)):
@@ -209,34 +206,46 @@ def main(_argv):
     # Setup Loss/es
     loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
-    # Testing/Validation function
-    def test_model(net, loader, dataset, metrics, ctx, vis=False):
+    model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
 
-        for i, batch in enumerate(loader):
-            data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-            labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
-            idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
-            outputs = [net(x) for x in data]
+    # model training complete, test it
+    tic = time.time()
+    _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
-            for metric in metrics:
-                metric.update(labels, outputs)
+    str_ = 'Train set:'
+    for i in range(len(train_set.classes)):
+        str_ += '\n'
+        for j in range(len(train_set.classes)):
+            str_ += str(metrics[4].mat[i, j]) + '\t'
+    print(str_)
+    str_ = 'Test set:'
+    for i in range(len(train_set.classes)):
+        str_ += '\n'
+        for j in range(len(train_set.classes)):
+            str_ += str(test_metrics[4].mat[i, j]) + '\t'
+    print(str_)
 
-            if vis:
-                # save the images with labels
-                for di in range(len(outputs)):  # loop over devices
-                    idxs = [int(idx) for idx in idxs[di].asnumpy()]
+    str_ = '[Finished] '
+    for metric in test_metrics:
+        result = metric.get()
+        if not isinstance(result, list):
+            result = [result]
+        for res in result:
+            str_ += ', Test_{}={:.3f}'.format(res[0], res[1])
+        metric.reset()
 
-                    output = [o.asnumpy() for o in outputs[di]]
-                    if isinstance(outputs[0], list) or isinstance(outputs[0], tuple):
-                        for i in range(len(idxs)):  # loop over samples
-                            dataset.save_sample(idxs[i], [o[i] for o in output])
-                    else:
-                        for i in range(len(idxs)):  # loop over samples
-                            dataset.save_sample(idxs[i], output[i])
+    str_ += '  # Samples: {}, Time Taken: {:.1f}'.format(len(test_set), time.time() - tic)
+    logging.info(str_)
 
-        return metrics
+    # logging.info("Cleaning up, making test videos.")
+    # for video in os.listdir(test_set.output_dir):
+    #     frames_to_video(os.path.join(test_set.output_dir, video), os.path.join(test_set.output_dir, video[:-4]),
+    #                     fps=int(25/FLAGS.every[2]))
+    #     shutil.rmtree(os.path.join(test_set.output_dir, video))
 
-    if FLAGS.epochs > 0:
+
+def train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw=None):
+    if FLAGS.epochs-start_epoch > 0:
         # Training loop
         lr_counter = 0
         num_batches = int(len(train_set)/FLAGS.batch_size)
@@ -284,18 +293,20 @@ def main(_argv):
                         epoch, i, num_batches, trainer.learning_rate, FLAGS.batch_size / (time.time() - btic))
 
                     str_ += ', {}={:.3f}'.format("loss:", train_sum_loss/(i*FLAGS.batch_size))
-                    tb_sw.add_scalar(tag='Training_loss',
-                                     scalar_value=train_sum_loss/(i*FLAGS.batch_size),
-                                     global_step=(epoch * len(train_data) + i))
+                    if tb_sw:
+                        tb_sw.add_scalar(tag='Training_loss',
+                                         scalar_value=train_sum_loss/(i*FLAGS.batch_size),
+                                         global_step=(epoch * len(train_data) + i))
                     for metric in metrics:
                         result = metric.get()
                         if not isinstance(result, list):
                             result = [result]
                         for res in result:
                             str_ += ', {}={:.3f}'.format(res[0], res[1])
-                            tb_sw.add_scalar(tag='Training_{}'.format(res[0]),
-                                             scalar_value=float(res[1]),
-                                             global_step=(epoch * len(train_data) + i))
+                            if tb_sw:
+                                tb_sw.add_scalar(tag='Training_{}'.format(res[0]),
+                                                 scalar_value=float(res[1]),
+                                                 global_step=(epoch * len(train_data) + i))
                     logging.info(str_)
 
             # Format end of epoch logging string getting metrics along the way
@@ -326,9 +337,10 @@ def main(_argv):
                     result = [result]
                 for res in result:
                     str_ += ', Val_{}={:.3f}'.format(res[0], res[1])
-                    tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
-                                     scalar_value=float(res[1]),
-                                     global_step=(epoch * len(train_data)))
+                    if tb_sw:
+                        tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
+                                         scalar_value=float(res[1]),
+                                         global_step=(epoch * len(train_data)))
                 metric.reset()
 
             str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
@@ -337,40 +349,35 @@ def main(_argv):
 
             model.save_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(epoch)))
 
-    # model training complete, test it
-    tic = time.time()
-    _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
+    return model
 
-    str_ = 'Train set:'
-    for i in range(len(train_set.classes)):
-        str_ += '\n'
-        for j in range(len(train_set.classes)):
-            str_ += str(metrics[4].mat[i, j]) + '\t'
-    print(str_)
-    str_ = 'Test set:'
-    for i in range(len(train_set.classes)):
-        str_ += '\n'
-        for j in range(len(train_set.classes)):
-            str_ += str(test_metrics[4].mat[i, j]) + '\t'
-    print(str_)
 
-    str_ = '[Finished] '
-    for metric in test_metrics:
-        result = metric.get()
-        if not isinstance(result, list):
-            result = [result]
-        for res in result:
-            str_ += ', Test_{}={:.3f}'.format(res[0], res[1])
-        metric.reset()
+# Testing/Validation function
+def test_model(net, loader, dataset, metrics, ctx, vis=False):
 
-    str_ += '  # Samples: {}, Time Taken: {:.1f}'.format(len(test_set), time.time() - tic)
-    logging.info(str_)
+    for i, batch in enumerate(loader):
+        data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+        labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+        idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
+        outputs = [net(x) for x in data]
 
-    # logging.info("Cleaning up, making test videos.")
-    # for video in os.listdir(test_set.output_dir):
-    #     frames_to_video(os.path.join(test_set.output_dir, video), os.path.join(test_set.output_dir, video[:-4]),
-    #                     fps=int(25/FLAGS.every[2]))
-    #     shutil.rmtree(os.path.join(test_set.output_dir, video))
+        for metric in metrics:
+            metric.update(labels, outputs)
+
+        if vis:
+            # save the images with labels
+            for di in range(len(outputs)):  # loop over devices
+                idxs = [int(idx) for idx in idxs[di].asnumpy()]
+
+                output = [o.asnumpy() for o in outputs[di]]
+                if isinstance(outputs[0], list) or isinstance(outputs[0], tuple):
+                    for i in range(len(idxs)):  # loop over samples
+                        dataset.save_sample(idxs[i], [o[i] for o in output])
+                else:
+                    for i in range(len(idxs)):  # loop over samples
+                        dataset.save_sample(idxs[i], output[i])
+
+    return metrics
 
 
 if __name__ == '__main__':
