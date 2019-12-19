@@ -273,7 +273,6 @@ class TennisSet:
                 largest_file = sorted(os.listdir(os.path.join(self._frames_dir, video_name + '.mp4', largest_dir)))[-1]
                 lengths[video_name] = int(largest_file[:-4])
 
-
         # old way, loading the video
         # for video in videos:
         #     video_path = os.path.join(self._videos_dir, video)
