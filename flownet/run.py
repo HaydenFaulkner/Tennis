@@ -133,13 +133,20 @@ def process_video(model, input_path, output_path=None, ctx=None):
     return output_path
 
 
-if __name__ == '__main__':
-    # just for debugging
+def generate_flows(image_dir, flow_dir):
     ctx = mx.gpu(0)
-
     net = get_flownet(ctx=ctx)
     net.hybridize()
+    process_imagedir(net, input_dir=image_dir, output_dir=flow_dir, ctx=ctx)
 
+
+if __name__ == '__main__':
+    generate_flows(image_dir="data/frames", flow_dir="data/flow")
+
+    # just for debugging
+    # ctx = mx.gpu(0)
+    #
+    # net = get_flownet(ctx=ctx)
+    # net.hybridize()
     # input_path = "/path/to/test.mp4"
     # process_video(net, input_path, ctx=ctx)
-    process_imagedir(net, input_dir="data/frames", output_dir="data/flow", ctx=ctx)

@@ -302,7 +302,22 @@ class TennisSet:
 
 def main(_argv):
 
-    ts = TennisSet(split='train', balance=False, split_id='02')  # used for debug
+    ts = TennisSet(split='train', balance=False, split_id='01')
+    print(ts.stats())
+
+    ts = TennisSet(split='val', balance=False, split_id='01')
+    print(ts.stats())
+
+    ts = TennisSet(split='test', balance=False, split_id='01')
+    print(ts.stats())
+
+    ts = TennisSet(split='train', balance=False, split_id='02')
+    print(ts.stats())
+
+    ts = TennisSet(split='val', balance=False, split_id='02')
+    print(ts.stats())
+
+    ts = TennisSet(split='test', balance=False, split_id='02')
     print(ts.stats())
 
 
