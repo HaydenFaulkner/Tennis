@@ -256,7 +256,7 @@ class TennisSet:
             return samples, videos, events
         else:
             logging.info("Split {} does not exist, please make sure it exists to load a dataset.".format(splits_file))
-            return None, None
+            return None, None, None
 
     def _get_video_lengths(self):
         """
