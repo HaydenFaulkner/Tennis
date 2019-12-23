@@ -160,8 +160,10 @@ def main(_argv):
 
     if FLAGS.window == 1:
         logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
+        print(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
     else:
         logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
+        print(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
 
     model.collect_params().reset_ctx(ctx)
     model.hybridize()
