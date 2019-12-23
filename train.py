@@ -51,7 +51,7 @@ flags.DEFINE_integer('stride', 1,
 
 flags.DEFINE_integer('batch_size', 64,
                      'Batch size for detection: higher faster, but more memory intensive.')
-flags.DEFINE_integer('epochs', 5,
+flags.DEFINE_integer('epochs', 20,
                      'How many training epochs to complete')
 flags.DEFINE_integer('num_gpus', 1,
                      'Number of GPUs to use')
