@@ -64,7 +64,7 @@ flags.DEFINE_float('lr', 0.001,
                    'Learning rate.')
 flags.DEFINE_float('lr_factor', 0.75,
                    'lr factor.')
-flags.DEFINE_list('lr_steps', '10',
+flags.DEFINE_list('lr_steps', '10, 20',
                   'Epochs at which learning rate factor applied.')
 flags.DEFINE_float('momentum', 0.9,
                    'momentum.')
@@ -73,6 +73,9 @@ flags.DEFINE_float('wd', 0.0001,
 
 flags.DEFINE_bool('vis', False,
                   'Visualise testing results')
+
+flags.DEFINE_bool('two_stream', False,
+                  'Use a two stream model.')
 
 
 def main(_argv):
@@ -160,10 +163,8 @@ def main(_argv):
 
     if FLAGS.window == 1:
         logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
-        print(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
     else:
         logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
-        print(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
 
     model.collect_params().reset_ctx(ctx)
     model.hybridize()
