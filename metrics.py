@@ -66,6 +66,9 @@ class PRF1(mx.metric.EvalMetric):
 
         """
         scores = []
+        avg_prec = []
+        avg_rec = []
+        avg_f1 = []
         for i, c in enumerate(self.label_names):
             prec = self.scores[0][i] / (self.scores[1][i] + np.finfo(float).eps)
             rec = self.scores[0][i] / (self.scores[2][i] + np.finfo(float).eps)
@@ -74,6 +77,14 @@ class PRF1(mx.metric.EvalMetric):
             scores.append((c+'_prec', prec))
             scores.append((c+'_rec', rec))
             scores.append((c+'_f1', f1))
+
+            avg_prec.append(prec)
+            avg_rec.append(rec)
+            avg_f1.append(f1)
+
+        scores.append(('AVG_prec', sum(avg_prec) / len(avg_prec)))
+        scores.append(('AVG_rec', sum(avg_rec) / len(avg_rec)))
+        scores.append(('AVG_f1', sum(avg_f1) / len(avg_f1)))
 
         return scores
 
