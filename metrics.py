@@ -85,6 +85,9 @@ class PRF1(mx.metric.EvalMetric):
         scores.append(('AVG_prec', sum(avg_prec) / len(avg_prec)))
         scores.append(('AVG_rec', sum(avg_rec) / len(avg_rec)))
         scores.append(('AVG_f1', sum(avg_f1) / len(avg_f1)))
+        scores.append(('AVG_NB_prec', sum(avg_prec[1:]) / len(avg_prec[1:])))
+        scores.append(('AVG_NB_rec', sum(avg_rec[1:]) / len(avg_rec[1:])))
+        scores.append(('AVG_NB_f1', sum(avg_f1[1:]) / len(avg_f1[1:])))
 
         return scores
 
