@@ -19,16 +19,20 @@ from mxnet.gluon.data.vision import transforms
 from gluoncv.model_zoo import get_model
 from gluoncv.utils.metrics.accuracy import Accuracy
 
-from model import TimeModel, FrameModel
+from model import TimeModel, FrameModel, TwoStreamModel, TemporalPooling
 from dataset import TennisSet
 from metrics import PRF1
 # from utils import frames_to_video
+
+from utils.transforms import TwoStreamTransform
 
 # disable autotune
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
 flags.DEFINE_string('backbone', 'resnet18_v1',
                     'Backbone CNN name: resnet18_v1')
+flags.DEFINE_string('backbone_from_id',  None,
+                    'Load a backbone model from a model_id, used for Temporal Pooling with fine-tuned CNN')
 flags.DEFINE_string('model_id', '0000',
                     'model identification string')
 flags.DEFINE_string('split_id', '01',
@@ -76,6 +80,8 @@ flags.DEFINE_bool('vis', False,
 
 flags.DEFINE_bool('two_stream', False,
                   'Use a two stream model.')
+flags.DEFINE_string('temp_pool', None,
+                    'mean or max.')
 
 
 def main(_argv):
@@ -126,16 +132,28 @@ def main(_argv):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
+    if FLAGS.two_stream:
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(FLAGS.data_shape),
+            TwoStreamTransform(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # doesn't do rand lighting
+        ])
+
+        transform_test = transforms.Compose([
+            transforms.Resize(FLAGS.data_shape + 32),
+            transforms.CenterCrop(FLAGS.data_shape),
+            TwoStreamTransform(color_dist=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
     # Load datasets
-    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
+    train_set = TennisSet(split='val', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=True)
+                          balance=True, flow=FLAGS.two_stream)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                        balance=False)
+                        balance=False, flow=FLAGS.two_stream)
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                         balance=False)
+                         balance=False, flow=FLAGS.two_stream)
 
     logging.info(train_set)
     logging.info(val_set)
@@ -150,21 +168,45 @@ def main(_argv):
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
     # Define Model
-    finetune_net = get_model(FLAGS.backbone, pretrained=True)
+    backbone_net = get_model(FLAGS.backbone, pretrained=True)
+
+    if FLAGS.two_stream:
+        flow_net = get_model(FLAGS.backbone, pretrained=False)
+        backbone_net = TwoStreamModel(backbone_net.features, flow_net.features, len(train_set.classes))
 
     if FLAGS.window == 1:  # Framewise Model
-        model = FrameModel(finetune_net, len(train_set.classes))
+        model = FrameModel(backbone_net, len(train_set.classes))
     else:  # Time Distributed RNN
-        model = TimeModel(finetune_net, len(train_set.classes))
+        if FLAGS.backbone_from_id:
+            if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
+                files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
+                files = [f for f in files if f[-7:] == '.params']
+                if len(files) > 0:
+                    files = sorted(files, reverse=True)  # put latest model first
+                    model_name = files[0]
+                    backbone_net.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
+                    logging.info('Loaded backbone params: {}'.format(os.path.join('models',
+                                                                                  FLAGS.backbone_from_id, model_name)))
+
+        if FLAGS.temp_pool in ['max', 'mean']:
+            assert FLAGS.backbone_from_id  # if we doing temporal pooling ensure that we have loaded a pretrained net
+            model = TemporalPooling(backbone_net, pool=FLAGS.temp_pool)
+        else:
+            model = TimeModel(backbone_net, len(train_set.classes))
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         model.initialize()
 
+    num_channels = 3
+    if FLAGS.two_stream:
+        num_channels = 6
     if FLAGS.window == 1:
-        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 3, FLAGS.data_shape, FLAGS.data_shape))))
+        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1,
+                                                             num_channels, FLAGS.data_shape, FLAGS.data_shape))))
     else:
-        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 3, FLAGS.data_shape, FLAGS.data_shape))))
+        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window,
+                                                             num_channels, FLAGS.data_shape, FLAGS.data_shape))))
 
     model.collect_params().reset_ctx(ctx)
     model.hybridize()
@@ -209,7 +251,8 @@ def main(_argv):
     # Setup Loss/es
     loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
-    model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
+    if FLAGS.temp_pool not in ['max', 'mean']:
+        model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
 
     # model training complete, test it
     tic = time.time()

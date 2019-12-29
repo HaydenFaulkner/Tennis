@@ -10,7 +10,7 @@ from utils.video import video_to_frames
 
 class TennisSet:
     def __init__(self, root='data', transform=None, split='train', every=1, balance=True, padding=1, stride=1, window=1,
-                 model_id='0000', split_id='01'):
+                 model_id='0000', split_id='01', flow=False):
         self._root = root
         self._split = split
         self._balance = balance
@@ -19,9 +19,11 @@ class TennisSet:
         self._stride = stride  # temporal stride for frame sampling
         self._window = window  # input frame volume size =1:frames >1:clip, sample not frame based
         self._transform = transform
+        self._flow = flow
 
         self._videos_dir = os.path.join(root, "videos")
         self._frames_dir = os.path.join(root, "frames")
+        self._flow_dir = os.path.join(root, "flow")
         self._splits_dir = os.path.join(root, "splits")
         self._labels_dir = os.path.join(root, "annotations", "labels")
         self.output_dir = os.path.join(root, "outputs", model_id, split)
@@ -73,6 +75,7 @@ class TennisSet:
     def __getitem__(self, idx):
         sample = self._samples[idx]
         img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
+        flw_path = self.get_image_path(self._flow_dir, sample[0], sample[1])
         label = self.classes.index(sample[2])
 
         if self._window > 1:
@@ -88,6 +91,10 @@ class TennisSet:
                 frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
                 img_path = self.get_image_path(self._frames_dir, sample[0], frame)
                 img = mx.image.imread(img_path, 1)
+                if self._flow:
+                    flw_path = self.get_image_path(self._flow_dir, sample[0], frame)
+                    flw = mx.image.imread(flw_path, 1)
+                    img = mx.nd.concatenate([img[8:-8][:][:], flw], axis=-1)
 
                 if self._transform is not None:
                     img = self._transform(img)
@@ -99,6 +106,12 @@ class TennisSet:
             img = imgs
         else:
             img = mx.image.imread(img_path, 1)
+
+            if self._flow:
+                flw = mx.image.imread(flw_path, 1)
+                img = img[8:-8][:][:]
+                # img = mx.nd.concatenate([img, flw], axis=-1)
+                img = mx.nd.concat(img, flw, dim=-1)
 
             if self._transform is not None:
                 img = self._transform(img)
@@ -302,7 +315,9 @@ class TennisSet:
 
 def main(_argv):
 
-    ts = TennisSet(split='train', balance=False, split_id='01')
+    ts = TennisSet(split='val', balance=False, split_id='01', flow=True)
+    for s in ts:
+        pass
     print(ts.stats())
 
     ts = TennisSet(split='val', balance=False, split_id='01')
