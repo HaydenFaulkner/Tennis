@@ -184,7 +184,7 @@ def main(_argv):
                 if len(files) > 0:
                     files = sorted(files, reverse=True)  # put latest model first
                     model_name = files[0]
-                    backbone_net.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
+                    backbone_net.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name), ctx=ctx)
                     logging.info('Loaded backbone params: {}'.format(os.path.join('models',
                                                                                   FLAGS.backbone_from_id, model_name)))
 
