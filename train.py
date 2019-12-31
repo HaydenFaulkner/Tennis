@@ -174,9 +174,8 @@ def main(_argv):
         flow_net = get_model(FLAGS.backbone, pretrained=False)
         backbone_net = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
 
-    if FLAGS.window == 1:  # Framewise Model
-        model = FrameModel(backbone_net, len(train_set.classes))
-    else:  # Time Distributed RNN
+    model = FrameModel(backbone_net, len(train_set.classes))
+    if FLAGS.window >= 1:  # Time Distributed RNN
         if FLAGS.backbone_from_id:
             if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
                 files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
@@ -184,15 +183,15 @@ def main(_argv):
                 if len(files) > 0:
                     files = sorted(files, reverse=True)  # put latest model first
                     model_name = files[0]
-                    backbone_net.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name), ctx=ctx)
+                    model.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name))
                     logging.info('Loaded backbone params: {}'.format(os.path.join('models',
                                                                                   FLAGS.backbone_from_id, model_name)))
 
         if FLAGS.temp_pool in ['max', 'mean']:
             assert FLAGS.backbone_from_id  # if we doing temporal pooling ensure that we have loaded a pretrained net
-            model = TemporalPooling(backbone_net, pool=FLAGS.temp_pool)
+            model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0)
         else:
-            model = TimeModel(backbone_net, len(train_set.classes))
+            model = TimeModel(model, len(train_set.classes))
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
