@@ -117,8 +117,8 @@ class TwoStreamModel(HybridBlock):
         """
         super(TwoStreamModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.backbone_rgb = backbone_rgb
-            self.backbone_flow = backbone_flow
+            self.backbone_rgb = backbone_rgb.features
+            self.backbone_flow = backbone_flow.features
             self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):

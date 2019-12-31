@@ -145,7 +145,7 @@ def main(_argv):
         ])
 
     # Load datasets
-    train_set = TennisSet(split='val', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
+    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
                           balance=True, flow=FLAGS.two_stream)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
@@ -172,7 +172,7 @@ def main(_argv):
 
     if FLAGS.two_stream:
         flow_net = get_model(FLAGS.backbone, pretrained=False)
-        backbone_net = TwoStreamModel(backbone_net.features, flow_net.features, len(train_set.classes))
+        backbone_net = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
 
     if FLAGS.window == 1:  # Framewise Model
         model = FrameModel(backbone_net, len(train_set.classes))
