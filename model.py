@@ -8,48 +8,48 @@ from utils.layers import TimeDistributed
 
 
 class FrameModel(HybridBlock):
-    def __init__(self, backbone, num_classes=-1, **kwargs):
+    def __init__(self, features, num_classes=-1, **kwargs):
         """
-        A framewise model (just the backbone CNN with a single dense layer to the classes)
+        A framewise model (just the features CNN with a single dense layer to the classes)
 
         Args:
-            backbone: the backbone CNN model
+            features: the features CNN model
             num_classes (int): the number of classes
         """
         super(FrameModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.backbone = backbone
+            self.features = features
             self.classes = None
             if num_classes > 0:
                 self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
-        x = self.backbone(x)
+        x = self.features(x)
         if self.classes:
             x = self.classes(x)
         return x
 
 
 class TemporalPooling(HybridBlock):
-    def __init__(self, backbone, num_classes=-1, pool='max', **kwargs):
+    def __init__(self, model, num_classes=-1, pool='max', **kwargs):
         """
         A temporal pooling model
 
         Args:
-            backbone: the backbone CNN model
+            model: the CNN model
             num_classes (int): the number of classes,
-                               -1 meaning the backbone output is a softmax (default)
-                               0 means we apply the pool between the backbone softmax
+                               -1 meaning the model output is a softmax (default)
+                               0 means we apply the pool between the model softmax
         """
         super(TemporalPooling, self).__init__(**kwargs)
         self.pool = pool
         with self.name_scope():
             self.classes = None
             if num_classes == 0:
-                self.td = TimeDistributed(backbone.backbone)
-                self.classes = backbone.classes
+                self.td = TimeDistributed(model.features)
+                self.classes = model.classes
             else:
-                self.td = TimeDistributed(backbone)
+                self.td = TimeDistributed(model)
                 if num_classes > 0:
                     self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
@@ -65,18 +65,18 @@ class TemporalPooling(HybridBlock):
 
 
 class TimeModel(HybridBlock):
-    def __init__(self, backbone, num_classes=-1, hidden_size=128, **kwargs):
+    def __init__(self, model, num_classes=-1, hidden_size=128, **kwargs):
         """
         A temporal CNN+RNN(GRU) model
 
         Args:
-            backbone: the backbone CNN model
+            model: the CNN model
             num_classes (int): the number of classes
             hidden_size (int): the hidden size of the GRU (default is 128)
         """
         super(TimeModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.td = TimeDistributed(backbone)
+            self.td = TimeDistributed(model)
             self.gru = mx.gluon.rnn.GRU(hidden_size, layout="NTC", bidirectional=True)
             self.classes = None
             if num_classes > 0:
@@ -106,26 +106,26 @@ class Debug(HybridBlock):
 
 
 class TwoStreamModel(HybridBlock):
-    def __init__(self, backbone_rgb, backbone_flow, num_classes, **kwargs):
+    def __init__(self, model_rgb, model_flow, num_classes, **kwargs):
         """
-        A two stream model (just the backbone CNNs concatenated before a single dense layer to the classes)
+        A two stream model (just the model CNNs concatenated before a single dense layer to the classes)
 
         Args:
-            backbone_rgb: the rgb backbone CNN model
-            backbone_flow: the flow backbone CNN model
+            model_rgb: the rgb model CNN model
+            model_flow: the flow model CNN model
             num_classes (int): the number of classes
         """
         super(TwoStreamModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.backbone_rgb = backbone_rgb.features
-            self.backbone_flow = backbone_flow.features
+            self.features_rgb = model_rgb.features
+            self.features_flow = model_flow.features
             self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
         rgb = F.slice_axis(x, axis=-3, begin=0, end=3)
         flow = F.slice_axis(x, axis=-3, begin=3, end=6)
-        rgb = self.backbone_rgb(rgb)
-        flow = self.backbone_flow(flow)
+        rgb = self.features_rgb(rgb)
+        flow = self.features_flow(flow)
         x = F.concat(rgb, flow, dim=-3)
         x = self.classes(x)
         return x
