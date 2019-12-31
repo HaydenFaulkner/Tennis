@@ -171,10 +171,10 @@ def main(_argv):
     backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
     if FLAGS.two_stream:
-        flow_net = get_model(FLAGS.backbone, pretrained=False)
-        backbone_net = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
-
-    model = FrameModel(backbone_net, len(train_set.classes))
+        flow_net = get_model(FLAGS.backbone, pretrained=False).features
+        model = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
+    else:
+        model = FrameModel(backbone_net, len(train_set.classes))
     if FLAGS.window > 1:  # Time Distributed RNN
         if FLAGS.backbone_from_id:
             if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
