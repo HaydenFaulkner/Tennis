@@ -175,7 +175,7 @@ def main(_argv):
         backbone_net = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
 
     model = FrameModel(backbone_net, len(train_set.classes))
-    if FLAGS.window >= 1:  # Time Distributed RNN
+    if FLAGS.window > 1:  # Time Distributed RNN
         if FLAGS.backbone_from_id:
             if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
                 files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
