@@ -117,8 +117,8 @@ class TwoStreamModel(HybridBlock):
         """
         super(TwoStreamModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.features_rgb = model_rgb.features
-            self.features_flow = model_flow.features
+            self.features_rgb = model_rgb
+            self.features_flow = model_flow
             self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
