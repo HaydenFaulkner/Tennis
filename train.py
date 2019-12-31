@@ -29,7 +29,7 @@ from utils.transforms import TwoStreamTransform
 # disable autotune
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
-flags.DEFINE_string('backbone', 'resnet18_v1',
+flags.DEFINE_string('backbone', 'resnet18_v2',
                     'Backbone CNN name: resnet18_v1')
 flags.DEFINE_string('backbone_from_id',  None,
                     'Load a backbone model from a model_id, used for Temporal Pooling with fine-tuned CNN')
@@ -145,7 +145,7 @@ def main(_argv):
         ])
 
     # Load datasets
-    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
+    train_set = TennisSet(split='val', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
                           balance=True, flow=FLAGS.two_stream)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
@@ -168,7 +168,7 @@ def main(_argv):
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
     # Define Model
-    backbone_net = get_model(FLAGS.backbone, pretrained=True)
+    backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
     if FLAGS.two_stream:
         flow_net = get_model(FLAGS.backbone, pretrained=False)

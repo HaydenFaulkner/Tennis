@@ -8,23 +8,23 @@ from utils.layers import TimeDistributed
 
 
 class FrameModel(HybridBlock):
-    def __init__(self, features, num_classes=-1, **kwargs):
+    def __init__(self, backbone, num_classes=-1, **kwargs):
         """
-        A framewise model (just the features CNN with a single dense layer to the classes)
+        A framewise model (just the backbone CNN with a single dense layer to the classes)
 
         Args:
-            features: the features CNN model
+            backbone: the backbone CNN model
             num_classes (int): the number of classes
         """
         super(FrameModel, self).__init__(**kwargs)
         with self.name_scope():
-            self.features = features
+            self.backbone = backbone
             self.classes = None
             if num_classes > 0:
                 self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
-        x = self.features(x)
+        x = self.backbone(x)
         if self.classes:
             x = self.classes(x)
         return x
@@ -46,7 +46,7 @@ class TemporalPooling(HybridBlock):
         with self.name_scope():
             self.classes = None
             if num_classes == 0:
-                self.td = TimeDistributed(model.features)
+                self.td = TimeDistributed(model.backbone)
                 self.classes = model.classes
             else:
                 self.td = TimeDistributed(model)
