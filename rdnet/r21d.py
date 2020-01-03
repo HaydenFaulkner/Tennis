@@ -57,7 +57,7 @@ def _conv21d(out_channels, kernel, strides=(1, 1, 1), padding=(0, 0, 0),
 
     return cell
 
-# Blocks
+
 class BasicBlockV1(HybridBlock):
     r"""BasicBlock V1 from `"Deep Residual Learning for Image Recognition"
     <http://arxiv.org/abs/1512.03385>`_ paper.
@@ -173,10 +173,9 @@ class R21DV1(HybridBlock):
     t : int, default 1
         number of timesteps.
     """
-    def __init__(self, block, layers, channels, classes=400, return_features=False, **kwargs):
+    def __init__(self, block, layers, channels, classes=400, **kwargs):
         super(R21DV1, self).__init__(**kwargs)
         assert len(layers) == len(channels) - 1
-        self.return_features = return_features
         with self.name_scope():
             self.features = nn.HybridSequential(prefix='')
             self.features.add(_conv21d(channels[0], [3, 7, 7], strides=[1, 2, 2], padding=[1, 3, 3],
@@ -201,26 +200,12 @@ class R21DV1(HybridBlock):
         return layer
 
     def hybrid_forward(self, F, x):
-        x = F.swapaxes(x, 1, 2) # b,t,c,w,h -> b,c,t,w,h
-        if self.return_features:
-            out_a = self.features[:5](x)
-            out_b = self.features[5:6](out_a)
-            out_c = self.features[6:](out_b)
-
-            # max pool out the extra dims  # todo avg pooling over time may be better as these are spatial feats
-            out_a = F.Pooling(out_a, kernel=(1, 2, 2), stride=(1, 2, 2), pad=(0, 0, 0), global_pool=False, pool_type='max')  # spatial
-            out_a = F.max(out_a, axis=2)  # temporal - works for any number of timesteps
-            out_b = F.Pooling(out_b, kernel=(1, 2, 2), stride=(1, 2, 2), pad=(0, 0, 0), global_pool=False, pool_type='max')  # spatial
-            out_b = F.max(out_b, axis=2)  # temporal - works for any number of timesteps
-            out_c = F.Pooling(out_c, kernel=(1, 2, 2), stride=(1, 2, 2), pad=(0, 0, 0), global_pool=False, pool_type='max')  # spatial
-            out_c = F.max(out_c, axis=2)  # temporal - works for any number of timesteps
-            return out_a, out_b, out_c
-
+        x = F.swapaxes(x, 1, 2)  # moved into features as block
         x = self.features(x)
-        avg = self.avg(x)
-        sm = F.softmax(self.dense(avg))
+        # avg = self.avg(x)
+        # sm = F.softmax(self.dense(avg))
 
-        return x, avg, sm
+        return x  # , avg, sm
 
 
 # Constructor

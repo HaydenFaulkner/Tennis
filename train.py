@@ -22,7 +22,7 @@ from gluoncv.utils.metrics.accuracy import Accuracy
 from model import CNNRNN, FrameModel, TwoStreamModel, TemporalPooling
 from dataset import TennisSet
 from metrics import PRF1
-from rdnet import get_r21d
+from rdnet.r21d import get_r21d
 # from utils import frames_to_video
 
 from utils.transforms import TwoStreamTransform
@@ -197,7 +197,8 @@ def main(_argv):
         elif FLAGS.temp_pool in ['gru', 'lstm']:
             model = CNNRNN(model, num_classes=len(train_set.classes), type=FLAGS.temp_pool, hidden_size=128)
         else:
-            model = None  # error
+            assert FLAGS.backbone == 'rdnet'  # ensure 3d net
+            assert FLAGS.window == 32
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
