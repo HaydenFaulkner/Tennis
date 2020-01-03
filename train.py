@@ -22,6 +22,7 @@ from gluoncv.utils.metrics.accuracy import Accuracy
 from model import CNNRNN, FrameModel, TwoStreamModel, TemporalPooling
 from dataset import TennisSet
 from metrics import PRF1
+from rdnet import get_r21d
 # from utils import frames_to_video
 
 from utils.transforms import TwoStreamTransform
@@ -168,7 +169,10 @@ def main(_argv):
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
     # Define Model
-    backbone_net = get_model(FLAGS.backbone, pretrained=True).features
+    if FLAGS.backbone == 'rdnet':
+        backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True)
+    else:
+        backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
     if FLAGS.two_stream:
         flow_net = get_model(FLAGS.backbone, pretrained=False).features
