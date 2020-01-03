@@ -64,27 +64,35 @@ class TemporalPooling(HybridBlock):
         return x
 
 
-class TimeModel(HybridBlock):
-    def __init__(self, model, num_classes=-1, hidden_size=128, **kwargs):
+class CNNRNN(HybridBlock):
+    def __init__(self, model, num_classes=-1, hidden_size=128, type='gru', **kwargs):
         """
         A temporal CNN+RNN(GRU) model
 
         Args:
             model: the CNN model
-            num_classes (int): the number of classes
+            num_classes (int): the number of classes,
+                               -1 meaning the model output is a softmax learnt from scratch (default)
+                               0 means we take the backbone classes layer
             hidden_size (int): the hidden size of the GRU (default is 128)
+            type (str): the unit type, either gur or lstm, gru default
         """
-        super(TimeModel, self).__init__(**kwargs)
+        super(CNNRNN, self).__init__(**kwargs)
         with self.name_scope():
-            self.td = TimeDistributed(model)
-            self.gru = mx.gluon.rnn.GRU(hidden_size, layout="NTC", bidirectional=True)
+            self.td = TimeDistributed(model.backbone)
+            if type == 'lstm':
+                self.rnn = mx.gluon.rnn.LSTM(hidden_size, layout="NTC", bidirectional=True)
+            else:
+                self.rnn = mx.gluon.rnn.GRU(hidden_size, layout="NTC", bidirectional=True)
             self.classes = None
-            if num_classes > 0:
+            if num_classes == 0:
+                self.classes = model.classes
+            elif num_classes > 0:
                 self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
         x = self.td(x)
-        x = self.gru(x.squeeze(axis=-1).squeeze(axis=-1))
+        x = self.rnn(x)
         x = F.max(x, axis=1)
         if self.classes:
             x = self.classes(x)

@@ -19,7 +19,7 @@ from mxnet.gluon.data.vision import transforms
 from gluoncv.model_zoo import get_model
 from gluoncv.utils.metrics.accuracy import Accuracy
 
-from model import TimeModel, FrameModel, TwoStreamModel, TemporalPooling
+from model import CNNRNN, FrameModel, TwoStreamModel, TemporalPooling
 from dataset import TennisSet
 from metrics import PRF1
 # from utils import frames_to_video
@@ -81,7 +81,7 @@ flags.DEFINE_bool('vis', False,
 flags.DEFINE_bool('two_stream', False,
                   'Use a two stream model.')
 flags.DEFINE_string('temp_pool', None,
-                    'mean or max.')
+                    'mean, max or gru.')
 
 
 def main(_argv):
@@ -190,8 +190,10 @@ def main(_argv):
         if FLAGS.temp_pool in ['max', 'mean']:
             assert FLAGS.backbone_from_id  # if we doing temporal pooling ensure that we have loaded a pretrained net
             model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0)
+        elif FLAGS.temp_pool in ['gru', 'lstm']:
+            model = CNNRNN(model, num_classes=len(train_set.classes), type=FLAGS.temp_pool, hidden_size=128)
         else:
-            model = TimeModel(model, len(train_set.classes))
+            model = None  # error
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
