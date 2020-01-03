@@ -5,6 +5,8 @@ import mxnet as mx
 import os
 import random
 
+from tqdm import tqdm
+
 from utils.video import video_to_frames
 
 
@@ -312,13 +314,29 @@ class TennisSet:
         os.makedirs(os.path.dirname(save_img_path), exist_ok=True)
         cv2.imwrite(save_img_path, img)
 
+    def calc_flow_mean_std(self, every=100):
+        assert self._flow
+        m0, m1, m2, s0, s1, s2, c = 0, 0, 0, 0, 0, 0, 0
+        for i in tqdm(range(len(self))):
+            if i % every == 0:
+                s = self.__getitem__(i)
+                s = s[0][:, :, 3:].asnumpy()
+                m0 += s[:, :, 0].mean() / 256
+                m1 += s[:, :, 1].mean() / 256
+                m2 += s[:, :, 2].mean() / 256
+                s0 += s[:, :, 0].std() / 256
+                s1 += s[:, :, 1].std() / 256
+                s2 += s[:, :, 2].std() / 256
+                c += 1
+        return m0/c, m1/c, m2/c, s0/c, s1/c, s2/c
+
 
 def main(_argv):
 
-    ts = TennisSet(split='val', balance=False, split_id='01', flow=True)
-    for s in ts:
+    ts = TennisSet(split='train', balance=False, split_id='01', flow=True)
+
+    for s in tqdm(ts):
         pass
-    print(ts.stats())
 
     ts = TennisSet(split='val', balance=False, split_id='01')
     print(ts.stats())

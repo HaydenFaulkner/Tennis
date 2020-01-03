@@ -7,8 +7,8 @@ from gluoncv.data.transforms.image import random_pca_lighting, random_flip
 class TwoStreamTransform(object):
 
     def __init__(self, color_dist=True,
-                 mean=(0.485, 0.456, 0.406, 0.5, 0.5, 0.5),
-                 std=(0.229, 0.224, 0.225, 0.25, 0.25, 0.25)):
+                 mean=(0.485, 0.456, 0.406, 0.863, 0.871, 0.883),
+                 std=(0.229, 0.224, 0.225, 0.098, 0.087, 0.095)):
 
         self._mean = mean
         self._std = std

@@ -135,13 +135,13 @@ def main(_argv):
     if FLAGS.two_stream:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(FLAGS.data_shape),
-            TwoStreamTransform(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # doesn't do rand lighting
+            TwoStreamTransform()  # doesn't do rand lighting
         ])
 
         transform_test = transforms.Compose([
             transforms.Resize(FLAGS.data_shape + 32),
             transforms.CenterCrop(FLAGS.data_shape),
-            TwoStreamTransform(color_dist=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            TwoStreamTransform(color_dist=False)
         ])
 
     # Load datasets
