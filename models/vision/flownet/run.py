@@ -6,8 +6,8 @@ import os
 from scipy.misc import imresize
 from tqdm import tqdm
 
-from flownet.model import get_flownet
-from flownet.utils import flow_to_image, crop, normalise
+from models.vision.flownet.model import get_flownet
+from models.vision.flownet.utils import flow_to_image, crop, normalise
 
 
 def process_two_images(model, files, ctx=None):

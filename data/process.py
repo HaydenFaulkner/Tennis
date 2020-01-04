@@ -2,7 +2,7 @@
 
 import os
 
-from flownet.run import generate_flows
+from models.vision.flownet.run import generate_flows
 from utils.video import video_to_frames
 
 

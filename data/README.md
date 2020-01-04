@@ -21,8 +21,8 @@ You can download each of the sub-directories on my [Google Drive](https://drive.
 - [``videos``](https://drive.google.com/open?id=1rGIJIwmp_jhB8eoW-KVNYKHlu56l5UAq) \[11.1 GB\] - The original videos
 
 Due to the size of the `frames` and `flow` directories (217 GB each) these need to be generated with the `process.py` 
-script. Please first download the [FlowNet](../flownet) model before running this script 
-([download here](https://drive.google.com/open?id=1AwUS8uBLc68j2jMc1dvC8XA4shJ_Amq0) and put in [/flownet/](../flownet) 
+script. Please first download the [FlowNet](../models/vision/flownet) model before running this script 
+([download here](https://drive.google.com/open?id=1AwUS8uBLc68j2jMc1dvC8XA4shJ_Amq0) and put in [/flownet/](../models/vision/flownet) 
 directory).
 
 ### About

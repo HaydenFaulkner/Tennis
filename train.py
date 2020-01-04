@@ -4,25 +4,22 @@ from absl.flags import FLAGS
 import logging
 import multiprocessing
 import mxnet as mx
-import numpy as np
 import os
-import shutil
 import sys
 from tensorboardX import SummaryWriter
 import time
 import warnings
 
-from mxnet import gluon, init
+from mxnet import gluon
 from mxnet import autograd as ag
-from mxnet.gluon import nn
 from mxnet.gluon.data.vision import transforms
 from gluoncv.model_zoo import get_model
 from gluoncv.utils.metrics.accuracy import Accuracy
 
-from model import CNNRNN, FrameModel, TwoStreamModel, TemporalPooling
+from models.vision.definitions import CNNRNN, FrameModel, TwoStreamModel, TemporalPooling
 from dataset import TennisSet
-from metrics import PRF1
-from rdnet.r21d import get_r21d
+from metrics.vision import PRF1
+from models.vision.rdnet.r21d import get_r21d
 # from utils import frames_to_video
 
 from utils.transforms import TwoStreamTransform
