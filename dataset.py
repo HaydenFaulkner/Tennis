@@ -2,8 +2,10 @@
 from absl import app, flags, logging
 import cv2
 import mxnet as mx
+import numpy as np
 import os
 import random
+import gluonnlp
 
 from tqdm import tqdm
 
@@ -11,9 +13,10 @@ from utils.video import video_to_frames
 
 
 class TennisSet:
-    def __init__(self, root='data', transform=None, split='train', every=1, balance=True, padding=1, stride=1, window=1,
-                 model_id='0000', split_id='01', flow=False):
+    def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1, stride=1, window=1,
+                 model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None):
         self._root = root
+        self._captions = captions
         self._split = split
         self._balance = balance
         self._every = every  # only get every nth frame from a video
@@ -27,17 +30,61 @@ class TennisSet:
         self._frames_dir = os.path.join(root, "frames")
         self._flow_dir = os.path.join(root, "flow")
         self._splits_dir = os.path.join(root, "splits")
+        self._annotations_dir = os.path.join(root, "annotations")
         self._labels_dir = os.path.join(root, "annotations", "labels")
         self.output_dir = os.path.join(root, "outputs", model_id, split)
 
         self.classes = self._get_classes()
 
-        self._samples, self._videos, self._events = self.load_data(split_id=split_id)
-
-        if self._balance:
-            self._samples = self._balance_classes()
+        self._samples, self._videos, self._events, self._points = self.load_data(split_id=split_id)
 
         self._video_lengths = self._get_video_lengths()
+
+        if self._captions:
+            self._samples = list(self._points.keys())
+
+            caps = [p[4] for p in self._points.values()]
+            words = ' '.join(caps).split()
+            counter = gluonnlp.data.count_tokens(words)
+            self.vocab = gluonnlp.Vocab(counter)
+            # fasttext = gluonnlp.embedding.create('fasttext', source='wiki.simple.vec')
+            # self.tgt_vocab.set_embedding(fasttext)
+
+            if vocab is None:  # training
+                # assert split == 'train'
+                vocab = self.vocab
+
+            for i in range(len(self)):
+                point_id = self._samples[i]
+                cap = self._points[point_id][4]
+                # For max_cap_len < 0, we do not clip the sequence
+                if max_cap_len >= 0:
+                    cap_ids = vocab[cap.split()[:max_cap_len]]
+                else:
+                    cap_ids = vocab[cap.split()]
+                cap_ids.insert(0, vocab[vocab.bos_token])
+                cap_ids.append(vocab[vocab.eos_token])
+                cap_ids = np.array(cap_ids, dtype=np.int32)
+                self._points[point_id].append(cap_ids)
+
+        elif self._balance:
+            self._samples = self._balance_classes()
+
+    def get_captions(self, ids=False, split=False):
+        caps = list()
+        for i in range(len(self)):
+            point_id = self._samples[i]
+            if ids:
+                cap = self._points[point_id][5]
+            else:
+                cap = self._points[point_id][4]
+
+            if split:
+                caps.append(cap.split())
+            else:
+                caps.append(cap)
+
+        return caps
 
     def __str__(self):
         return '\n\n' + self.__class__.__name__ + '\n' + self.stats() + '\n'
@@ -52,18 +99,28 @@ class TennisSet:
         output = ''
         output += 'Split: {}\n'.format(self._split)
 
-        classes = self.classes
-        frame_counts = [0]*len(classes)
-        for s in self._samples:
-            frame_counts[classes.index(s[2])] += 1
-        event_counts = [0]*len(classes)
-        for e in self._events:
-            event_counts[classes.index(e[3])] += 1
+        if self._captions:
+            output += '{0: <8} {1: <8} {2: <5}\n'.format('# Points', '# Frames', 'FperP')
+            points = 0
+            frames = 0
+            for s in self._samples:
+                points += 1
+                frames += int(self._points[s][2]) - int(self._points[s][1])
+            output += '{0: <8} {1: <8} {2: <5}\n'.format(points, frames, int(frames/points))
 
-        output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format('Class', '# Frames', '# Events', 'FperE')
-        for i, c in enumerate(classes):
-            output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format(c, frame_counts[i], event_counts[i],
-                                                                 int(frame_counts[i]/(event_counts[i]+.00001)))
+        else:
+            classes = self.classes
+            frame_counts = [0]*len(classes)
+            for s in self._samples:
+                frame_counts[classes.index(s[2])] += 1
+            event_counts = [0]*len(classes)
+            for e in self._events:
+                event_counts[classes.index(e[3])] += 1
+
+            output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format('Class', '# Frames', '# Events', 'FperE')
+            for i, c in enumerate(classes):
+                output += '{0: <6} {1: <8} {2: <8} {3: <5}\n'.format(c, frame_counts[i], event_counts[i],
+                                                                     int(frame_counts[i]/(event_counts[i]+.00001)))
         return output
 
     def __len__(self):
@@ -76,27 +133,17 @@ class TennisSet:
 
     def __getitem__(self, idx):
         sample = self._samples[idx]
-        img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
-        flw_path = self.get_image_path(self._flow_dir, sample[0], sample[1])
-        label = self.classes.index(sample[2])
+        if self._captions:
+            point = self._points[sample]
+            vid = point[0]
+            start = int(point[1])
+            end = int(point[2])
+            cap = point[5]
 
-        if self._window > 1:
             imgs = None
-            window_offsets = list(range(int(-self._window/2), int(self._window/2)+1))
-            for offset in window_offsets:
-                # need to get max frame for video, has to be an 'every' frame
-                max_frame = self._video_lengths[sample[0]]-self._every
-                for i in range(self._every):
-                    if (max_frame - i) % self._every == 0:
-                        max_frame -= i
-                        break
-                frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
-                img_path = self.get_image_path(self._frames_dir, sample[0], frame)
+            for f in range(start, end):
+                img_path = self.get_image_path(self._frames_dir, vid, f)
                 img = mx.image.imread(img_path, 1)
-                if self._flow:
-                    flw_path = self.get_image_path(self._flow_dir, sample[0], frame)
-                    flw = mx.image.imread(flw_path, 1)
-                    img = mx.nd.concatenate([img[8:-8][:][:], flw], axis=-1)
 
                 if self._transform is not None:
                     img = self._transform(img)
@@ -105,20 +152,55 @@ class TennisSet:
                     imgs = mx.ndarray.expand_dims(img, axis=0)
                 else:
                     imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
-            img = imgs
+            # if self._split == 'train':
+            #     return imgs, cap, idx
+            # else:
+            return imgs, cap, len(imgs), len(cap)#, idx
         else:
-            img = mx.image.imread(img_path, 1)
 
-            if self._flow:
-                flw = mx.image.imread(flw_path, 1)
-                img = img[8:-8][:][:]
-                # img = mx.nd.concatenate([img, flw], axis=-1)
-                img = mx.nd.concat(img, flw, dim=-1)
+            img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])
+            flw_path = self.get_image_path(self._flow_dir, sample[0], sample[1])
+            label = self.classes.index(sample[2])
 
-            if self._transform is not None:
-                img = self._transform(img)
+            if self._window > 1:
+                imgs = None
+                window_offsets = list(range(int(-self._window/2), int(self._window/2)+1))
+                for offset in window_offsets:
+                    # need to get max frame for video, has to be an 'every' frame
+                    max_frame = self._video_lengths[sample[0]]-self._every
+                    for i in range(self._every):
+                        if (max_frame - i) % self._every == 0:
+                            max_frame -= i
+                            break
+                    frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
+                    img_path = self.get_image_path(self._frames_dir, sample[0], frame)
+                    img = mx.image.imread(img_path, 1)
+                    if self._flow:
+                        flw_path = self.get_image_path(self._flow_dir, sample[0], frame)
+                        flw = mx.image.imread(flw_path, 1)
+                        img = mx.nd.concatenate([img[8:-8][:][:], flw], axis=-1)
 
-        return img, label, idx
+                    if self._transform is not None:
+                        img = self._transform(img)
+
+                    if imgs is None:
+                        imgs = mx.ndarray.expand_dims(img, axis=0)
+                    else:
+                        imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
+                img = imgs
+            else:
+                img = mx.image.imread(img_path, 1)
+
+                if self._flow:
+                    flw = mx.image.imread(flw_path, 1)
+                    img = img[8:-8][:][:]
+                    # img = mx.nd.concatenate([img, flw], axis=-1)
+                    img = mx.nd.concat(img, flw, dim=-1)
+
+                if self._transform is not None:
+                    img = self._transform(img)
+
+            return img, label, idx
 
     @staticmethod
     def _get_classes():
@@ -268,7 +350,28 @@ class TennisSet:
 
                 events.append([video, start_frame, last_frame, cur_class])  # add the last event
 
-            return samples, videos, events
+            # let's make up the points data
+            with open(os.path.join(self._annotations_dir, 'points.txt'), 'r') as f:
+                lines = f.readlines()
+            points = [l.rstrip().split() for l in lines]
+
+            # add caps
+            with open(os.path.join(self._annotations_dir, 'captions.txt'), 'r') as f:
+                lines = f.readlines()
+                lines = [l.rstrip().split('\t') for l in lines]
+            caps = dict()
+            for l in lines:
+                caps[l[0]] = l[1]
+            for i in range(len(points)):
+                points[i].append(caps[points[i][0]])
+
+            # filter out points not in this split
+            points_dict = dict()
+            for point in points:
+                if point[1] in videos and int(point[2]) in in_set[point[1]]:
+                    points_dict[point[0]] = point[1:]
+
+            return samples, videos, events, points_dict
         else:
             logging.info("Split {} does not exist, please make sure it exists to load a dataset.".format(splits_file))
             return None, None, None
@@ -333,10 +436,10 @@ class TennisSet:
 
 def main(_argv):
 
-    ts = TennisSet(split='train', balance=False, split_id='01', flow=True)
-
+    ts = TennisSet(split='val', captions=True, balance=False, split_id='01', flow=True)
     for s in tqdm(ts):
         pass
+    print(ts.stats())
 
     ts = TennisSet(split='val', balance=False, split_id='01')
     print(ts.stats())
