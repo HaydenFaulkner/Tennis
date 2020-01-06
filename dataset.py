@@ -141,17 +141,21 @@ class TennisSet:
             cap = point[5]
 
             imgs = None
+            c = 0
             for f in range(start, end):
-                img_path = self.get_image_path(self._frames_dir, vid, f)
-                img = mx.image.imread(img_path, 1)
+                if c % self._every == 0:
+                    # print('%d/%d'%(f-start, end-start))
+                    img_path = self.get_image_path(self._frames_dir, vid, f)
+                    img = mx.image.imread(img_path, 1)
 
-                if self._transform is not None:
-                    img = self._transform(img)
+                    if self._transform is not None:
+                        img = self._transform(img)
 
-                if imgs is None:
-                    imgs = mx.ndarray.expand_dims(img, axis=0)
-                else:
-                    imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
+                    if imgs is None:
+                        imgs = mx.ndarray.expand_dims(img, axis=0)
+                    else:
+                        imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
+                c += 1
             # if self._split == 'train':
             #     return imgs, cap, idx
             # else:
@@ -201,6 +205,20 @@ class TennisSet:
                     img = self._transform(img)
 
             return img, label, idx
+
+    def get_data_lens(self):
+        assert self._captions
+        lens = list()
+        for i in range(len(self)):
+            sample = self._samples[i]
+
+            point = self._points[sample]
+            start = int(point[1])
+            end = int(point[2])
+            cap = point[5]
+
+            lens.append((int((end-start+1)/self._every), len(cap)))
+        return lens
 
     @staticmethod
     def _get_classes():
