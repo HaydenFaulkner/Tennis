@@ -147,6 +147,8 @@ parser.add_argument('--freeze_backbone', type=bool, default=False,
                     help='freeze the backbone cnn')
 parser.add_argument('--data_shape', type=int, default=512,
                     help='image shape w,h')
+parser.add_argument('--every', type=int, default=5,
+                    help='only do every nth frame')
 args = parser.parse_args()
 logging_config(args.save_dir)
 logging.info(args)
@@ -168,9 +170,9 @@ transform_test = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-data_train = TennisSet(split='val', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=10)
-data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=10)
-data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=10)
+data_train = TennisSet(split='val', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
+data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
+data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
 
 val_tgt_sentences = data_val.get_captions(split=True)  # split as bleu set as tweaked otherwise dont split
 test_tgt_sentences = data_test.get_captions(split=True)
