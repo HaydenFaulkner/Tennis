@@ -31,6 +31,8 @@ flags.DEFINE_string('backbone', 'resnet18_v2',
                     'Backbone CNN name: resnet18_v1')
 flags.DEFINE_string('backbone_from_id',  None,
                     'Load a backbone model from a model_id, used for Temporal Pooling with fine-tuned CNN')
+flags.DEFINE_bool('freeze_backbone', False,
+                  'Freeze the backbone model')
 flags.DEFINE_string('model_id', '0000',
                     'model identification string')
 flags.DEFINE_string('split_id', '01',
@@ -187,6 +189,10 @@ def main(_argv):
                     model.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name))
                     logging.info('Loaded backbone params: {}'.format(os.path.join('models',
                                                                                   FLAGS.backbone_from_id, model_name)))
+
+        if FLAGS.freeze_backbone:
+            for param in model.collect_params().values():
+                param.grad_req = 'null'
 
         if FLAGS.temp_pool in ['max', 'mean']:
             assert FLAGS.backbone_from_id  # if we doing temporal pooling ensure that we have loaded a pretrained net
