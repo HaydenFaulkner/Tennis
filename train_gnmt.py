@@ -153,9 +153,7 @@ captioning.write_sentences(test_tgt_sentences, os.path.join(args.save_dir, 'test
 # data_test = gluon.data.SimpleDataset([(ele[0], ele[1], len(ele[0]), len(ele[1]), i)
 #                                       for i, ele in enumerate(data_test)])
 
-ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else \
-    [mx.gpu(int(x)) for x in args.gpus.split(',')]
-num_ctxs = len(ctx)
+ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else mx.gpu(int(args.gpus))
 
 backbone_net = get_model(args.backbone, pretrained=True, ctx=ctx).features
 cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
