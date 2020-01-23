@@ -78,8 +78,8 @@ flags.DEFINE_float('wd', 0.0001,
 flags.DEFINE_bool('vis', False,
                   'Visualise testing results')
 
-flags.DEFINE_bool('two_stream', False,
-                  'Use a two stream model.')
+flags.DEFINE_string('flow', '',
+                    'How to use flow, "" for none, "only" for no rgb, "sixc" for six channel inp, "twos" for twostream')
 flags.DEFINE_string('temp_pool', None,
                     'mean, max or gru.')
 
@@ -132,7 +132,7 @@ def main(_argv):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    if FLAGS.two_stream:
+    if bool(FLAGS.flow):
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(FLAGS.data_shape),
             TwoStreamTransform()  # doesn't do rand lighting
@@ -147,13 +147,13 @@ def main(_argv):
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=True, flow=FLAGS.two_stream)
+                          balance=True, flow=bool(FLAGS.flow))
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                        balance=False, flow=FLAGS.two_stream)
+                        balance=False, flow=bool(FLAGS.flow))
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                         balance=False, flow=FLAGS.two_stream)
+                         balance=False, flow=bool(FLAGS.flow))
 
     logging.info(train_set)
     logging.info(val_set)
@@ -173,8 +173,10 @@ def main(_argv):
     else:
         backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
-    if FLAGS.two_stream:
-        flow_net = get_model(FLAGS.backbone, pretrained=False).features
+    if FLAGS.flow in ['twos', 'only']:
+        if FLAGS.flow == 'only':
+            backbone_net = None
+        flow_net = get_model(FLAGS.backbone, pretrained=True).features  # todo orig exp was not pretrained flow
         model = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
     else:
         model = FrameModel(backbone_net, len(train_set.classes))
@@ -208,7 +210,7 @@ def main(_argv):
         model.initialize()
 
     num_channels = 3
-    if FLAGS.two_stream:
+    if bool(FLAGS.flow):
         num_channels = 6
     if FLAGS.window == 1:
         logging.info(model.summary(mx.nd.ndarray.ones(shape=(1,

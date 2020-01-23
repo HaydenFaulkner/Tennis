@@ -132,9 +132,12 @@ class TwoStreamModel(HybridBlock):
     def hybrid_forward(self, F, x):
         rgb = F.slice_axis(x, axis=-3, begin=0, end=3)
         flow = F.slice_axis(x, axis=-3, begin=3, end=6)
-        rgb = self.features_rgb(rgb)
         flow = self.features_flow(flow)
-        x = F.concat(rgb, flow, dim=-1)
+        if self.features_rgb is not None:
+            rgb = self.features_rgb(rgb)
+            x = F.concat(rgb, flow, dim=-1)
+        else:
+            x = flow
         x = self.classes(x)
         return x
 
