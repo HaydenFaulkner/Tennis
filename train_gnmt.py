@@ -103,8 +103,9 @@ parser.add_argument('--log_interval', type=int, default=100, metavar='N',
                     help='report interval')
 parser.add_argument('--save_dir', type=str, default='out_dir2',
                     help='directory path to save the final model and training log')
-parser.add_argument('--gpu', type=int, default=None,
-                    help='id of the gpu to use. Set it to empty means to use cpu.')
+parser.add_argument('--gpus', type=str,
+                    help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.'
+                         '(using single gpu is suggested)')
 parser.add_argument('--backbone', type=str, default='DenseNet121',
                     help='backbone cnn architecture')
 parser.add_argument('--backbone_from_id', type=str, default=None,
@@ -151,11 +152,8 @@ captioning.write_sentences(test_tgt_sentences, os.path.join(args.save_dir, 'test
 #                                      for i, ele in enumerate(data_val)])
 # data_test = gluon.data.SimpleDataset([(ele[0], ele[1], len(ele[0]), len(ele[1]), i)
 #                                       for i, ele in enumerate(data_test)])
-if args.gpu is None:
-    ctx = mx.cpu()
-    print('Use CPU')
-else:
-    ctx = mx.gpu(args.gpu)
+
+ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else mx.gpu(int(args.gpus))
 
 backbone_net = get_model(args.backbone, pretrained=True, ctx=ctx).features
 cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
