@@ -171,7 +171,10 @@ def main(_argv):
     if FLAGS.backbone == 'rdnet':
         backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True)
     else:
-        backbone_net = get_model(FLAGS.backbone, pretrained=True).features
+        if FLAGS.flow == 'sixc':
+            backbone_net = get_model(FLAGS.backbone, pretrained=False).features  # 6 channel input, don't want pretraind
+        else:
+            backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
     if FLAGS.flow in ['twos', 'only']:
         if FLAGS.flow == 'only':
