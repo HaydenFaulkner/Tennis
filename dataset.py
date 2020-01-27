@@ -140,7 +140,7 @@ class TennisSet:
             end = int(point[2])
             cap = point[5]
 
-            imgs = None
+            imgs = list()
             c = 0
             for f in range(start, end):
                 if c % self._every == 0:
@@ -150,12 +150,10 @@ class TennisSet:
 
                     if self._transform is not None:
                         img = self._transform(img)
-
-                    if imgs is None:
-                        imgs = mx.ndarray.expand_dims(img, axis=0)
-                    else:
-                        imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
+                    imgs.append(img)
                 c += 1
+
+            imgs = mx.nd.stack(*imgs)
             # if self._split == 'train':
             #     return imgs, cap, idx
             # else:
@@ -167,7 +165,7 @@ class TennisSet:
             label = self.classes.index(sample[2])
 
             if self._window > 1:
-                imgs = None
+                imgs = list()
                 window_offsets = list(range(int(-self._window/2), int(self._window/2)+1))
                 for offset in window_offsets:
                     # need to get max frame for video, has to be an 'every' frame
@@ -186,12 +184,8 @@ class TennisSet:
 
                     if self._transform is not None:
                         img = self._transform(img)
-
-                    if imgs is None:
-                        imgs = mx.ndarray.expand_dims(img, axis=0)
-                    else:
-                        imgs = mx.ndarray.concatenate([imgs, mx.ndarray.expand_dims(img, axis=0)], axis=0)
-                img = imgs
+                    imgs.append(img)
+                img = mx.nd.stack(*imgs)
             else:
                 img = mx.image.imread(img_path, 1)
 
