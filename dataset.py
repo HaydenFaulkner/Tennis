@@ -154,9 +154,7 @@ class TennisSet:
                 c += 1
 
             imgs = mx.nd.stack(*imgs)
-            # if self._split == 'train':
-            #     return imgs, cap, idx
-            # else:
+
             return imgs, cap, len(imgs), len(cap)#, idx
         else:
 
