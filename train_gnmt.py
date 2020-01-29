@@ -65,11 +65,11 @@ mx.random.seed(10000)
 
 parser = argparse.ArgumentParser(description='Neural Machine Translation Example.'
                                              'We train the Google NMT model')
+parser.add_argument('--model_id', type=str, default='0000', help='model identification string')
 parser.add_argument('--src_lang', type=str, default='en', help='Source language')
 parser.add_argument('--tgt_lang', type=str, default='vi', help='Target language')
 parser.add_argument('--epochs', type=int, default=40, help='upper epoch limit')
-parser.add_argument('--num_hidden', type=int, default=128, help='Dimension of the embedding '
-                                                                'vectors and states.')
+parser.add_argument('--num_hidden', type=int, default=128, help='Dimension of the embedding vectors and states.')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
 parser.add_argument('--num_layers', type=int, default=2, help='number of layers in the encoder'
@@ -99,10 +99,7 @@ parser.add_argument('--lr', type=float, default=1E-3, help='Initial learning rat
 parser.add_argument('--lr_update_factor', type=float, default=0.5,
                     help='Learning rate decay factor')
 parser.add_argument('--clip', type=float, default=5.0, help='gradient clipping')
-parser.add_argument('--log_interval', type=int, default=100, metavar='N',
-                    help='report interval')
-parser.add_argument('--save_dir', type=str, default='out_dir2',
-                    help='directory path to save the final model and training log')
+parser.add_argument('--log_interval', type=int, default=100, metavar='N', help='report interval')
 parser.add_argument('--gpus', type=str,
                     help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.'
                          '(using single gpu is suggested)')
@@ -116,12 +113,42 @@ parser.add_argument('--data_shape', type=int, default=512,
                     help='image shape w,h')
 parser.add_argument('--every', type=int, default=5,
                     help='only do every nth frame')
+parser.add_argument('--trainable_cnn', type=bool, default=False,
+                    help='if false we preextract feats in the transforms stage and dont have a source embedder')
 args = parser.parse_args()
 print(args)
-logging_config(args.save_dir)
+logging_config(os.path.join('models', 'captioning', args.model_id))
 
-#
-# data_train, data_val, data_test, val_tgt_sentences, test_tgt_sentences = dataprocessor.load_translation_data(bleu='tweaked', args=args) # todo old remove...
+ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else mx.gpu(int(args.gpus))
+
+backbone_net = get_model(args.backbone, pretrained=True, ctx=ctx).features
+cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
+if args.backbone_from_id:
+    if os.path.exists(os.path.join('models', 'vision', args.backbone_from_id)):
+        files = os.listdir(os.path.join('models', 'vision', args.backbone_from_id))
+        files = [f for f in files if f[-7:] == '.params']
+        if len(files) > 0:
+            files = sorted(files, reverse=True)  # put latest model first
+            model_name = files[0]
+            cnn_model.load_parameters(os.path.join('models', 'vision', args.backbone_from_id, model_name), ctx=ctx)
+            logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', args.backbone_from_id, model_name)))
+    else:
+        raise FileNotFoundError('{}'.format(os.path.join('models', 'vision', args.backbone_from_id)))
+
+if args.freeze_backbone:
+    for param in cnn_model.collect_params().values():
+        param.grad_req = 'null'
+
+cnn_model = TimeDistributed(cnn_model.backbone)
+
+if args.trainable_cnn:
+    encoder_model = cnn_model
+else:
+    from mxnet.gluon import nn
+    encoder_model = nn.HybridSequential(prefix='src_embed_')
+    with encoder_model.name_scope():
+        encoder_model.add(nn.Dropout(rate=0.0))
+
 transform_train = transforms.Compose([
     transforms.RandomResizedCrop(args.data_shape),
     transforms.RandomFlipLeftRight(),
@@ -138,46 +165,21 @@ transform_test = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-data_train = TennisSet(split='val', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
+data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
 data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
 data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
 
 val_tgt_sentences = data_val.get_captions(split=True)  # split as bleu set as tweaked otherwise dont split
 test_tgt_sentences = data_test.get_captions(split=True)
-captioning.write_sentences(val_tgt_sentences, os.path.join(args.save_dir, 'val_gt.txt'))
-captioning.write_sentences(test_tgt_sentences, os.path.join(args.save_dir, 'test_gt.txt'))
-
-# data_train = data_train.transform(lambda src, tgt: (src, tgt, len(src), len(tgt)), lazy=False)
-# data_val = gluon.data.SimpleDataset([(ele[0], ele[1], len(ele[0]), len(ele[1]), i)
-#                                      for i, ele in enumerate(data_val)])
-# data_test = gluon.data.SimpleDataset([(ele[0], ele[1], len(ele[0]), len(ele[1]), i)
-#                                       for i, ele in enumerate(data_test)])
-
-ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else mx.gpu(int(args.gpus))
-
-backbone_net = get_model(args.backbone, pretrained=True, ctx=ctx).features
-cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
-if args.backbone_from_id:
-    if os.path.exists(os.path.join('models', args.backbone_from_id)):
-        files = os.listdir(os.path.join('models', args.backbone_from_id))
-        files = [f for f in files if f[-7:] == '.params']
-        if len(files) > 0:
-            files = sorted(files, reverse=True)  # put latest model first
-            model_name = files[0]
-            cnn_model.load_parameters(os.path.join('models', args.backbone_from_id, model_name), ctx=ctx)
-            logging.info('Loaded backbone params: {}'.format(os.path.join('models',
-                                                                          args.backbone_from_id, model_name)))
-
-if args.freeze_backbone:
-    for param in cnn_model.collect_params().values():
-        param.grad_req = 'null'
+captioning.write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', args.model_id, 'val_gt.txt'))
+captioning.write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', args.model_id, 'test_gt.txt'))
 
 encoder, decoder = get_gnmt_encoder_decoder(hidden_size=args.num_hidden,
                                             dropout=args.dropout,
                                             num_layers=args.num_layers,
                                             num_bi_layers=args.num_bi_layers)
 model = NMTModel(src_vocab=None, tgt_vocab=data_train.vocab, encoder=encoder, decoder=decoder,
-                 embed_size=args.num_hidden, prefix='gnmt_', src_embed=TimeDistributed(cnn_model.backbone))
+                 embed_size=args.num_hidden, prefix='gnmt_', src_embed=encoder_model)
 model.initialize(init=mx.init.Uniform(0.1), ctx=ctx)
 static_alloc = True
 model.hybridize(static_alloc=static_alloc)
@@ -212,8 +214,9 @@ def evaluate(data_loader):
     all_inst_ids = []
     avg_loss_denom = 0
     avg_loss = 0.0
-    for _, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) \
-            in enumerate(data_loader):
+    for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) in enumerate(data_loader):
+        if batch_id == len(data_loader)-1:
+            break  # errors on last batch, jump out for now
         src_seq = src_seq.as_in_context(ctx)
         tgt_seq = tgt_seq.as_in_context(ctx)
         src_valid_length = src_valid_length.as_in_context(ctx)
@@ -253,14 +256,16 @@ def train():
         log_wc = 0
         log_start_time = time.time()
         print(epoch_id)
-        for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length)\
-                in enumerate(train_data_loader):
+        for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length) in enumerate(train_data_loader):
+            if batch_id == len(train_data_loader)-1:
+                break  # errors on last batch, jump out for now
             # logging.info(src_seq.context) Context suddenly becomes GPU.
-            print(batch_id)
             src_seq = src_seq.as_in_context(ctx)
             tgt_seq = tgt_seq.as_in_context(ctx)
             src_valid_length = src_valid_length.as_in_context(ctx)
             tgt_valid_length = tgt_valid_length.as_in_context(ctx)
+            if not args.trainable_cnn:  # for memory reasons we run through the encoder here and not in the RNN, can't back prop
+                src_seq = cnn_model(src_seq)
             with mx.autograd.record():
                 out, _ = model(src_seq, tgt_seq[:, :-1], src_valid_length, tgt_valid_length - 1)
                 loss = loss_function(out, tgt_seq[:, 1:], tgt_valid_length - 1).mean()
@@ -297,22 +302,22 @@ def train():
         logging.info('[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'
                      .format(epoch_id, test_loss, np.exp(test_loss), test_bleu_score * 100))
         captioning.write_sentences(valid_translation_out,
-                                   os.path.join(args.save_dir,
+                                   os.path.join('models', 'captioning', args.model_id,
                                                    'epoch{:d}_valid_out.txt').format(epoch_id))
         captioning.write_sentences(test_translation_out,
-                                   os.path.join(args.save_dir,
+                                   os.path.join('models', 'captioning', args.model_id,
                                                    'epoch{:d}_test_out.txt').format(epoch_id))
         if valid_bleu_score > best_valid_bleu:
             best_valid_bleu = valid_bleu_score
-            save_path = os.path.join(args.save_dir, 'valid_best.params')
+            save_path = os.path.join('models', 'captioning', args.model_id, 'valid_best.params')
             logging.info('Save best parameters to {}'.format(save_path))
             model.save_parameters(save_path)
         if epoch_id + 1 >= (args.epochs * 2) // 3:
             new_lr = trainer.learning_rate * args.lr_update_factor
             logging.info('Learning rate change to {}'.format(new_lr))
             trainer.set_learning_rate(new_lr)
-    if os.path.exists(os.path.join(args.save_dir, 'valid_best.params')):
-        model.load_parameters(os.path.join(args.save_dir, 'valid_best.params'))
+    if os.path.exists(os.path.join('models', 'captioning', args.model_id, 'valid_best.params')):
+        model.load_parameters(os.path.join('models', 'captioning', args.model_id, 'valid_best.params'))
     valid_loss, valid_translation_out = evaluate(val_data_loader)
     valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
     logging.info('Best model valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'
@@ -322,9 +327,9 @@ def train():
     logging.info('Best model test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'
                  .format(test_loss, np.exp(test_loss), test_bleu_score * 100))
     captioning.write_sentences(valid_translation_out,
-                               os.path.join(args.save_dir, 'best_valid_out.txt'))
+                               os.path.join('models', 'captioning', args.model_id, 'best_valid_out.txt'))
     captioning.write_sentences(test_translation_out,
-                               os.path.join(args.save_dir, 'best_test_out.txt'))
+                               os.path.join('models', 'captioning', args.model_id, 'best_test_out.txt'))
 
 
 def write_sentences(sentences, file_path):
@@ -334,6 +339,7 @@ def write_sentences(sentences, file_path):
                 of.write(u' '.join(sent) + u'\n')
             else:
                 of.write(sent + u'\n')
+
 
 if __name__ == '__main__':
     train()
