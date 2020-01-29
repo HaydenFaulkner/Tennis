@@ -204,7 +204,7 @@ transform_test = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-data_train = TennisSet(split='val', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
+data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
 data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
 data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
 
