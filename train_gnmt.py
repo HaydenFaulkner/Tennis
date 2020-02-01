@@ -215,7 +215,7 @@ def evaluate(data_loader):
     avg_loss_denom = 0
     avg_loss = 0.0
     for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) in enumerate(data_loader):
-        if batch_id == len(data_loader)-1:
+        if batch_id == len(data_loader)-2:
             break  # errors on last batch, jump out for now
         src_seq = src_seq.as_in_context(ctx)
         tgt_seq = tgt_seq.as_in_context(ctx)
