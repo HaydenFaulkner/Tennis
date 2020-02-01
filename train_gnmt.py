@@ -215,7 +215,7 @@ def evaluate(data_loader):
     avg_loss_denom = 0
     avg_loss = 0.0
     for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) in enumerate(data_loader):
-        if batch_id == len(data_loader)-2:
+        if batch_id == len(data_loader)-args.batch_size:
             break  # errors on last batch, jump out for now
         src_seq = src_seq.as_in_context(ctx)
         tgt_seq = tgt_seq.as_in_context(ctx)
@@ -257,7 +257,7 @@ def train():
         log_start_time = time.time()
         print(epoch_id)
         for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length) in enumerate(train_data_loader):
-            if batch_id == len(train_data_loader)-1:
+            if batch_id == len(train_data_loader)-args.batch_size:
                 break  # errors on last batch, jump out for now
             # logging.info(src_seq.context) Context suddenly becomes GPU.
             src_seq = src_seq.as_in_context(ctx)
