@@ -1,6 +1,7 @@
 """Tennis Video Classification Dataset"""
 from absl import app, flags, logging
 import cv2
+import math
 import mxnet as mx
 import numpy as np
 import os
@@ -164,7 +165,8 @@ class TennisSet:
 
             if self._window > 1:
                 imgs = list()
-                window_offsets = list(range(int(-self._window/2), int(self._window/2)+1))
+                window_offsets = list(range(int(-self._window/2), int(math.ceil(self._window/2))))
+                window_offsets = window_offsets[:]
                 for offset in window_offsets:
                     # need to get max frame for video, has to be an 'every' frame
                     max_frame = self._video_lengths[sample[0]]-self._every

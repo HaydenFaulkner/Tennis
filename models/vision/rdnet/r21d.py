@@ -210,7 +210,7 @@ class R21DV1(HybridBlock):
 
 # Constructor
 def get_r21d(num_layers, n_classes, t=8, pretrained=False, ctx=mx.cpu(),
-             root=os.path.join('rdnet', 'weights'), **kwargs):
+             root=os.path.join('models', 'vision', 'rdnet', 'weights'), **kwargs):
 
     net_layers = { 34: ('basic_block', [3, 4, 6, 3], [64, 64, 128, 256, 512]),
                   152: ('bottle_neck', [3, 8, 36, 3], [64, 256, 512, 1024, 2048])}
