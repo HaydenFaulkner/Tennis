@@ -8,7 +8,7 @@ from utils.layers import TimeDistributed
 
 
 class FrameModel(HybridBlock):
-    def __init__(self, backbone, num_classes=-1, **kwargs):
+    def __init__(self, backbone, num_classes=-1, swap=False, **kwargs):
         """
         A framewise model (just the backbone CNN with a single dense layer to the classes)
 
@@ -17,6 +17,7 @@ class FrameModel(HybridBlock):
             num_classes (int): the number of classes
         """
         super(FrameModel, self).__init__(**kwargs)
+        self.swap = swap
         with self.name_scope():
             self.backbone = backbone
             self.classes = None
@@ -24,6 +25,8 @@ class FrameModel(HybridBlock):
                 self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
+        if self.swap:
+            x = F.swapaxes(x, 1, 2)
         x = self.backbone(x)
         if self.classes:
             x = self.classes(x)

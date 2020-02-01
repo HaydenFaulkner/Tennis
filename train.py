@@ -169,7 +169,7 @@ def main(_argv):
 
     # Define Model
     if FLAGS.backbone == 'rdnet':
-        backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True)
+        backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True).features
     else:
         if FLAGS.flow == 'sixc':
             backbone_net = get_model(FLAGS.backbone, pretrained=False).features  # 6 channel input, don't want pretraind
@@ -181,6 +181,8 @@ def main(_argv):
             backbone_net = None
         flow_net = get_model(FLAGS.backbone, pretrained=True).features  # todo orig exp was not pretrained flow
         model = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
+    elif FLAGS.backbone == 'rdnet':
+        model = FrameModel(backbone_net, len(train_set.classes), swap=True)
     else:
         model = FrameModel(backbone_net, len(train_set.classes))
     if FLAGS.window > 1:  # Time Distributed RNN

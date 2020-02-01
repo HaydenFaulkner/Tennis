@@ -202,10 +202,10 @@ class R21DV1(HybridBlock):
     def hybrid_forward(self, F, x):
         x = F.swapaxes(x, 1, 2)  # moved into features as block
         x = self.features(x)
-        # avg = self.avg(x)
-        # sm = F.softmax(self.dense(avg))
+        avg = self.avg(x)
+        sm = F.softmax(self.dense(avg))
 
-        return x  # , avg, sm
+        return x, avg, sm
 
 
 # Constructor
