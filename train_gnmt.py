@@ -166,8 +166,8 @@ transform_test = transforms.Compose([
 ])
 
 data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
-data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
-data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
+data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
+data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
 
 val_tgt_sentences = data_val.get_captions(split=True)  # split as bleu set as tweaked otherwise dont split
 test_tgt_sentences = data_test.get_captions(split=True)
