@@ -462,22 +462,19 @@ def test_model(net, loader, dataset, metrics, ctx, vis=False):
 
 
 def save_features(net, loader, dataset, ctx):
-    for i, batch in tqdm(enumerate(loader), desc='saving features', total=int(len(dataset)/FLAGS.batch_size)):
+    for batch in tqdm(loader, desc='saving features', total=int(len(dataset)/FLAGS.batch_size)):
         data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-        labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+        # labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
         idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
 
-        outputs = [net.backbone(x) for x in data]
-
-        # save the images with labels
-        for di in range(len(outputs)):  # loop over devices
-            idxs = [int(idx) for idx in idxs[di].asnumpy()]
-            output = [o.asnumpy() for o in outputs[di]]
-
-            for i, o in zip(idxs, outputs[0]):  # loop over samples
-                feat_path = dataset.save_feature_path(i)
+        for xi, x in enumerate(data):
+            feat = net.backbone(x)
+            feat = feat.asnumpy()
+            idxsi = idxs[xi].asnumpy()
+            for i in range(len(idxsi)):
+                feat_path = dataset.save_feature_path(idxsi[i])
                 os.makedirs(os.path.dirname(feat_path), exist_ok=True)
-                np.save(feat_path, o)
+                np.save(feat_path, feat[i])
 
 
 if __name__ == '__main__':
