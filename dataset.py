@@ -14,8 +14,9 @@ from utils.video import video_to_frames
 
 
 class TennisSet:
-    def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1, stride=1, window=1,
-                 model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None):
+    def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1,
+                 stride=1, window=1, model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None,
+                 load_feats=False):
         self._root = root
         self._captions = captions
         self._split = split
@@ -34,6 +35,8 @@ class TennisSet:
         self._annotations_dir = os.path.join(root, "annotations")
         self._labels_dir = os.path.join(root, "annotations", "labels")
         self.output_dir = os.path.join(root, "outputs", model_id, split)
+        self.feat_dir = os.path.join(root, "features", model_id)
+        self._load_feats = load_feats
 
         self.classes = self._get_classes()
 
@@ -132,6 +135,18 @@ class TennisSet:
         chunk = int(frame_number/chunk_size)*chunk_size
         return os.path.join(root_dir, video_name+'.mp4', '{:010d}'.format(chunk), '{:010d}.jpg'.format(frame_number))
 
+    @staticmethod
+    def get_feature_path(feat_dir, video_name, frame_number, chunk_size=1000):
+        chunk = int(frame_number / chunk_size) * chunk_size
+        return os.path.join(feat_dir, video_name + '.mp4', '{:010d}'.format(chunk), '{:010d}.npy'.format(frame_number))
+
+    def save_feature_path(self, idx, chunk_size=1000):
+        sample = self._samples[idx]
+        video_name = sample[0]
+        frame_number = sample[1]
+        chunk = int(frame_number / chunk_size) * chunk_size
+        return os.path.join(self.feat_dir, video_name + '.mp4', '{:010d}'.format(chunk), '{:010d}.npy'.format(frame_number))
+
     def __getitem__(self, idx):
         sample = self._samples[idx]
         if self._captions:
@@ -146,8 +161,12 @@ class TennisSet:
             for f in range(start, end):
                 if c % self._every == 0:
                     # print('%d/%d'%(f-start, end-start))
-                    img_path = self.get_image_path(self._frames_dir, vid, f)
-                    img = mx.image.imread(img_path, 1)
+                    if self._load_feats:
+                        feats_path = self.get_feature_path(self.feat_dir, vid, f)
+                        img = np.load(feats_path)
+                    else:
+                        img_path = self.get_image_path(self._frames_dir, vid, f)
+                        img = mx.image.imread(img_path, 1)
 
                     if self._transform is not None:
                         img = self._transform(img)
@@ -175,8 +194,13 @@ class TennisSet:
                             max_frame -= i
                             break
                     frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
-                    img_path = self.get_image_path(self._frames_dir, sample[0], frame)
-                    img = mx.image.imread(img_path, 1)
+                    if self._load_feats:
+                        feats_path = self.get_feature_path(self.feat_dir, sample[0], frame)
+                        img = np.load(feats_path)
+                    else:
+                        img_path = self.get_image_path(self._frames_dir, sample[0], frame)
+                        img = mx.image.imread(img_path, 1)
+
                     if self._flow:
                         flw_path = self.get_image_path(self._flow_dir, sample[0], frame)
                         flw = mx.image.imread(flw_path, 1)
@@ -187,13 +211,16 @@ class TennisSet:
                     imgs.append(img)
                 img = mx.nd.stack(*imgs)
             else:
-                img = mx.image.imread(img_path, 1)
+
+                if self._load_feats:
+                    feats_path = self.get_feature_path(self.feat_dir, sample[0], sample[1])
+                    img = np.load(feats_path)
+                else:
+                    img = mx.image.imread(img_path, 1)
 
                 if self._flow:
                     flw = mx.image.imread(flw_path, 1)
-                    img = img[8:-8][:][:]
-                    # img = mx.nd.concatenate([img, flw], axis=-1)
-                    img = mx.nd.concat(img, flw, dim=-1)
+                    img = mx.nd.concat(img[8:-8][:][:], flw, dim=-1)
 
                 if self._transform is not None:
                     img = self._transform(img)

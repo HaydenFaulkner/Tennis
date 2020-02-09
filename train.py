@@ -4,10 +4,12 @@ from absl.flags import FLAGS
 import logging
 import multiprocessing
 import mxnet as mx
+import numpy as np
 import os
 import sys
 from tensorboardX import SummaryWriter
 import time
+from tqdm import tqdm
 import warnings
 
 from mxnet import gluon
@@ -77,6 +79,10 @@ flags.DEFINE_float('wd', 0.0001,
 
 flags.DEFINE_bool('vis', False,
                   'Visualise testing results')
+flags.DEFINE_bool('save_feats', False,
+                  'save CNN features as npy files')
+flags.DEFINE_bool('load_feats', False,
+                  'save CNN features as npy files')
 
 flags.DEFINE_string('flow', '',
                     'How to use flow, "" for none, "only" for no rgb, "sixc" for six channel inp, "twos" for twostream')
@@ -111,49 +117,53 @@ def main(_argv):
     # set up tensorboard summary writer
     tb_sw = SummaryWriter(log_dir=os.path.join(log_dir, 'tb'), comment=FLAGS.model_id)
 
+    feat_sub_dir = None
+
     # Data augmentation, will do in dataset incase window>1 and need to be applied image-wise
     jitter_param = 0.4
     lighting_param = 0.1
-
-    transform_train = transforms.Compose([
-        transforms.RandomResizedCrop(FLAGS.data_shape),
-        transforms.RandomFlipLeftRight(),
-        transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
-                                     saturation=jitter_param),
-        transforms.RandomLighting(lighting_param),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-
-    transform_test = transforms.Compose([
-        transforms.Resize(FLAGS.data_shape + 32),
-        transforms.CenterCrop(FLAGS.data_shape),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-
-    if bool(FLAGS.flow):
+    transform_train = None
+    transform_test = None
+    if not FLAGS.load_feats:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(FLAGS.data_shape),
-            TwoStreamTransform()  # doesn't do rand lighting
+            transforms.RandomFlipLeftRight(),
+            transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
+                                         saturation=jitter_param),
+            transforms.RandomLighting(lighting_param),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
         transform_test = transforms.Compose([
             transforms.Resize(FLAGS.data_shape + 32),
             transforms.CenterCrop(FLAGS.data_shape),
-            TwoStreamTransform(color_dist=False)
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
+
+        if bool(FLAGS.flow):
+            transform_train = transforms.Compose([
+                transforms.RandomResizedCrop(FLAGS.data_shape),
+                TwoStreamTransform()  # doesn't do rand lighting
+            ])
+
+            transform_test = transforms.Compose([
+                transforms.Resize(FLAGS.data_shape + 32),
+                transforms.CenterCrop(FLAGS.data_shape),
+                TwoStreamTransform(color_dist=False)
+            ])
 
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=True, flow=bool(FLAGS.flow))
+                          balance=True, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                        balance=False, flow=bool(FLAGS.flow))
+                        balance=False, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                         balance=False, flow=bool(FLAGS.flow))
+                         balance=False, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
 
     logging.info(train_set)
     logging.info(val_set)
@@ -168,25 +178,29 @@ def main(_argv):
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
     # Define Model
-    if FLAGS.backbone == 'rdnet':
-        backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True).features
+    if FLAGS.load_feats:
+        model = None
     else:
-        if FLAGS.flow == 'sixc':
-            backbone_net = get_model(FLAGS.backbone, pretrained=False).features  # 6 channel input, don't want pretraind
+        if FLAGS.backbone == 'rdnet':
+            backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True).features
         else:
-            backbone_net = get_model(FLAGS.backbone, pretrained=True).features
+            if FLAGS.flow == 'sixc':
+                backbone_net = get_model(FLAGS.backbone, pretrained=False).features  # 6 channel input, don't want pretraind
+            else:
+                backbone_net = get_model(FLAGS.backbone, pretrained=True).features
 
-    if FLAGS.flow in ['twos', 'only']:
-        if FLAGS.flow == 'only':
-            backbone_net = None
-        flow_net = get_model(FLAGS.backbone, pretrained=True).features  # todo orig exp was not pretrained flow
-        model = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
-    elif FLAGS.backbone == 'rdnet':
-        model = FrameModel(backbone_net, len(train_set.classes), swap=True)
-    else:
-        model = FrameModel(backbone_net, len(train_set.classes))
+        if FLAGS.flow in ['twos', 'only']:
+            if FLAGS.flow == 'only':
+                backbone_net = None
+            flow_net = get_model(FLAGS.backbone, pretrained=True).features  # todo orig exp was not pretrained flow
+            model = TwoStreamModel(backbone_net, flow_net, len(train_set.classes))
+        elif FLAGS.backbone == 'rdnet':
+            model = FrameModel(backbone_net, len(train_set.classes), swap=True)
+        else:
+            model = FrameModel(backbone_net, len(train_set.classes))
     if FLAGS.window > 1:  # Time Distributed RNN
-        if FLAGS.backbone_from_id:
+
+        if FLAGS.backbone_from_id and model is not None:
             if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
                 files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
                 files = [f for f in files if f[-7:] == '.params']
@@ -197,7 +211,7 @@ def main(_argv):
                     logging.info('Loaded backbone params: {}'.format(os.path.join('models',
                                                                                   FLAGS.backbone_from_id, model_name)))
 
-        if FLAGS.freeze_backbone:
+        if FLAGS.freeze_backbone and model is not None:
             for param in model.collect_params().values():
                 param.grad_req = 'null'
 
@@ -237,6 +251,11 @@ def main(_argv):
             start_epoch = int(model_name.split('.')[0]) + 1
             model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
             logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
+
+    if FLAGS.save_feats:
+        for data, sett in zip([train_data, val_data], [train_set, val_set]):
+            save_features(model, data, sett, ctx)
+        return
 
     # Setup the optimiser
     trainer = gluon.Trainer(model.collect_params(), 'sgd',
@@ -440,6 +459,25 @@ def test_model(net, loader, dataset, metrics, ctx, vis=False):
                         dataset.save_sample(idxs[i], output[i])
 
     return metrics
+
+
+def save_features(net, loader, dataset, ctx):
+    for i, batch in tqdm(enumerate(loader), desc='saving features', total=int(len(dataset)/FLAGS.batch_size)):
+        data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+        labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+        idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
+
+        outputs = [net.backbone(x) for x in data]
+
+        # save the images with labels
+        for di in range(len(outputs)):  # loop over devices
+            idxs = [int(idx) for idx in idxs[di].asnumpy()]
+            output = [o.asnumpy() for o in outputs[di]]
+
+            for i, o in zip(idxs, outputs[0]):  # loop over samples
+                feat_path = dataset.save_feature_path(i)
+                os.makedirs(os.path.dirname(feat_path), exist_ok=True)
+                np.save(feat_path, o)
 
 
 if __name__ == '__main__':

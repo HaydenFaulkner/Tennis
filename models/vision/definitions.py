@@ -81,8 +81,10 @@ class CNNRNN(HybridBlock):
             type (str): the unit type, either gur or lstm, gru default
         """
         super(CNNRNN, self).__init__(**kwargs)
+        self.feats = model is None
         with self.name_scope():
-            self.td = TimeDistributed(model.backbone)
+            if model is not None:
+                self.td = TimeDistributed(model.backbone)
             if type == 'lstm':
                 self.rnn = mx.gluon.rnn.LSTM(hidden_size, layout="NTC", bidirectional=True)
             else:
@@ -94,7 +96,8 @@ class CNNRNN(HybridBlock):
                 self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
-        x = self.td(x)
+        if not self.feats:
+            x = self.td(x)
         x = self.rnn(x)
         x = F.max(x, axis=1)
         if self.classes:
