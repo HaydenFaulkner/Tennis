@@ -166,8 +166,8 @@ transform_test = transforms.Compose([
 ])
 
 data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
-data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
-data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every)
+data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
+data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
 
 val_tgt_sentences = data_val.get_captions(split=True)  # split as bleu set as tweaked otherwise dont split
 test_tgt_sentences = data_test.get_captions(split=True)
@@ -215,8 +215,8 @@ def evaluate(data_loader):
     avg_loss_denom = 0
     avg_loss = 0.0
     for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) in enumerate(data_loader):
-        if batch_id == len(data_loader)-2:
-            break  # errors on last batch, jump out for now
+        # if batch_id == len(data_loader)-1:
+        #     break  # errors on last batch, jump out for now
         src_seq = src_seq.as_in_context(ctx)
         tgt_seq = tgt_seq.as_in_context(ctx)
         src_valid_length = src_valid_length.as_in_context(ctx)

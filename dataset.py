@@ -16,7 +16,7 @@ from utils.video import video_to_frames
 class TennisSet:
     def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1,
                  stride=1, window=1, model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None,
-                 load_feats=False):
+                 inference=False, load_feats=False):
         self._root = root
         self._captions = captions
         self._split = split
@@ -27,6 +27,7 @@ class TennisSet:
         self._window = window  # input frame volume size =1:frames >1:clip, sample not frame based
         self._transform = transform
         self._flow = flow
+        self._inference = inference
 
         self._videos_dir = os.path.join(root, "videos")
         self._frames_dir = os.path.join(root, "frames")
@@ -175,7 +176,10 @@ class TennisSet:
 
             imgs = mx.nd.stack(*imgs)
 
-            return imgs, cap, len(imgs), len(cap)#, idx
+            if self._inference:
+                return imgs, cap, len(imgs), len(cap), idx
+            else:
+                return imgs, cap, len(imgs), len(cap)
         else:
 
             img_path = self.get_image_path(self._frames_dir, sample[0], sample[1])

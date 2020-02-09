@@ -23,8 +23,7 @@ from mxnet import gluon
 import gluonnlp as nlp
 import gluonnlp.data.batchify as btf
 
-def get_dataloaders(data_train, data_val, data_test, args,
-                    use_average_length=False, num_shards=0, num_workers=8):
+def get_dataloaders(data_train, data_val, data_test, args, use_average_length=False, num_shards=0, num_workers=8):
     """Create data loaders for training/validation/test."""
     data_train_lengths = data_train.get_data_lens()  # get_data_lengths(data_train)
     data_val_lengths = data_val.get_data_lens()  # get_data_lengths(data_val)
