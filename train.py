@@ -253,7 +253,7 @@ def main(_argv):
             logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
 
     if FLAGS.save_feats:
-        for data, sett in zip([train_data, val_data], [train_set, val_set]):
+        for data, sett in zip([train_data, val_data, test_data], [train_set, val_set, test_set]):
             save_features(model, data, sett, ctx)
         return
 
