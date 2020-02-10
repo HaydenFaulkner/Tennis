@@ -81,8 +81,8 @@ flags.DEFINE_bool('vis', False,
                   'Visualise testing results')
 flags.DEFINE_bool('save_feats', False,
                   'save CNN features as npy files')
-flags.DEFINE_bool('load_feats', False,
-                  'save CNN features as npy files')
+flags.DEFINE_string('feats_model', None,
+                    'load CNN features as npy files from this model')
 
 flags.DEFINE_string('flow', '',
                     'How to use flow, "" for none, "only" for no rgb, "sixc" for six channel inp, "twos" for twostream')
@@ -124,7 +124,7 @@ def main(_argv):
     lighting_param = 0.1
     transform_train = None
     transform_test = None
-    if not FLAGS.load_feats:
+    if FLAGS.feats_model is None:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(FLAGS.data_shape),
             transforms.RandomFlipLeftRight(),
@@ -157,13 +157,13 @@ def main(_argv):
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=True, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
+                          balance=True, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                        balance=False, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
+                        balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                         balance=False, flow=bool(FLAGS.flow), load_feats=FLAGS.load_feats)
+                         balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
 
     logging.info(train_set)
     logging.info(val_set)
@@ -178,9 +178,8 @@ def main(_argv):
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
     # Define Model
-    if FLAGS.load_feats:
-        model = None
-    else:
+    model = None
+    if FLAGS.feats_model is None:
         if FLAGS.backbone == 'rdnet':
             backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True).features
         else:
@@ -231,12 +230,18 @@ def main(_argv):
     num_channels = 3
     if bool(FLAGS.flow):
         num_channels = 6
-    if FLAGS.window == 1:
-        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1,
-                                                             num_channels, FLAGS.data_shape, FLAGS.data_shape))))
+    if FLAGS.feats_model is None:
+        if FLAGS.window == 1:
+            logging.info(model.summary(mx.nd.ndarray.ones(shape=(1,
+                                                                 num_channels, FLAGS.data_shape, FLAGS.data_shape))))
+        else:
+            logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window,
+                                                                 num_channels, FLAGS.data_shape, FLAGS.data_shape))))
     else:
-        logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window,
-                                                             num_channels, FLAGS.data_shape, FLAGS.data_shape))))
+        if FLAGS.window == 1:
+            logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 4096))))
+        else:
+            logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 4096))))
 
     model.collect_params().reset_ctx(ctx)
     model.hybridize()

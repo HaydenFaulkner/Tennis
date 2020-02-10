@@ -16,7 +16,7 @@ from utils.video import video_to_frames
 class TennisSet:
     def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1,
                  stride=1, window=1, model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None,
-                 inference=False, load_feats=False):
+                 inference=False, feats_model=None):
         self._root = root
         self._captions = captions
         self._split = split
@@ -36,8 +36,10 @@ class TennisSet:
         self._annotations_dir = os.path.join(root, "annotations")
         self._labels_dir = os.path.join(root, "annotations", "labels")
         self.output_dir = os.path.join(root, "outputs", model_id, split)
-        self.feat_dir = os.path.join(root, "features", model_id)
-        self._load_feats = load_feats
+        self._load_feats = False
+        if feats_model is not None:
+            self.feat_dir = os.path.join(root, "features", feats_model)
+            self._load_feats = True
 
         self.classes = self._get_classes()
 
@@ -164,7 +166,7 @@ class TennisSet:
                     # print('%d/%d'%(f-start, end-start))
                     if self._load_feats:
                         feats_path = self.get_feature_path(self.feat_dir, vid, f)
-                        img = np.load(feats_path)
+                        img = mx.nd.array(np.load(feats_path))
                     else:
                         img_path = self.get_image_path(self._frames_dir, vid, f)
                         img = mx.image.imread(img_path, 1)
@@ -200,7 +202,7 @@ class TennisSet:
                     frame = min(max(0, sample[1]+offset*self._stride), int(max_frame))  # bound the frame
                     if self._load_feats:
                         feats_path = self.get_feature_path(self.feat_dir, sample[0], frame)
-                        img = np.load(feats_path)
+                        img = mx.nd.array(np.load(feats_path))
                     else:
                         img_path = self.get_image_path(self._frames_dir, sample[0], frame)
                         img = mx.image.imread(img_path, 1)
@@ -218,7 +220,7 @@ class TennisSet:
 
                 if self._load_feats:
                     feats_path = self.get_feature_path(self.feat_dir, sample[0], sample[1])
-                    img = np.load(feats_path)
+                    img = mx.nd.array(np.load(feats_path))
                 else:
                     img = mx.image.imread(img_path, 1)
 
