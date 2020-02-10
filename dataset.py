@@ -37,6 +37,7 @@ class TennisSet:
         self._labels_dir = os.path.join(root, "annotations", "labels")
         self.output_dir = os.path.join(root, "outputs", model_id, split)
         self._load_feats = False
+        self.feat_dir = os.path.join(root, "features", model_id)
         if feats_model is not None:
             self.feat_dir = os.path.join(root, "features", feats_model)
             self._load_feats = True
