@@ -124,6 +124,7 @@ def main(_argv):
     lighting_param = 0.1
     transform_train = None
     transform_test = None
+    balance_train = True
     if FLAGS.feats_model is None:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(FLAGS.data_shape),
@@ -153,11 +154,12 @@ def main(_argv):
                 transforms.CenterCrop(FLAGS.data_shape),
                 TwoStreamTransform(color_dist=False)
             ])
-
+    else:
+        balance_train = False
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=True, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+                          balance=balance_train, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
     val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                         stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
                         balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
@@ -478,8 +480,9 @@ def save_features(net, loader, dataset, ctx):
             idxsi = idxs[xi].asnumpy()
             for i in range(len(idxsi)):
                 feat_path = dataset.save_feature_path(idxsi[i])
-                os.makedirs(os.path.dirname(feat_path), exist_ok=True)
-                np.save(feat_path, feat[i])
+                if not os.path.exists(feat_path):
+                    os.makedirs(os.path.dirname(feat_path), exist_ok=True)
+                    np.save(feat_path, feat[i])
 
 
 if __name__ == '__main__':
