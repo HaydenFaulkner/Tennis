@@ -154,7 +154,8 @@ def main(_argv):
                 transforms.CenterCrop(FLAGS.data_shape),
                 TwoStreamTransform(color_dist=False)
             ])
-    else:
+
+    if FLAGS.save_feats:
         balance_train = False
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
