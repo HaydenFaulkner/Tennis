@@ -36,6 +36,13 @@ Alternatively you can download our annotations `.tar.gz`
 ### The Models
 Coming Soon - More information on the models can be found in the README in the models directory.
 
+### Feature extraction
+After you have trained a model you can save the backbone output as `.npy` features by using `--save_feats`
+```
+--model_id 0006 --backbone DenseNet121 --num_gpus 1 --num_workers 16 --save_feats
+```
+Features will be saved in `\data\features\$model_id$\` with the same structure as `\data\frames\`.
+
 ### Evalutations
 ...
 
