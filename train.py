@@ -292,7 +292,7 @@ def main(_argv):
                     PRF1(label_names=train_set.classes)]
 
     # Setup Loss/es
-    loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+    loss_fn = gluon.loss.SoftmaxCrossEntropyLoss(from_logits=True)
 
     if FLAGS.temp_pool not in ['max', 'mean']:
         model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
