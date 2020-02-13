@@ -46,18 +46,23 @@ class TemporalPooling(HybridBlock):
         """
         super(TemporalPooling, self).__init__(**kwargs)
         self.pool = pool
+        self.feats = model is None
         with self.name_scope():
             self.classes = None
-            if num_classes == 0:
-                self.td = TimeDistributed(model.backbone)
-                self.classes = model.classes
+            if model is not None:
+                if num_classes == 0:
+                    self.td = TimeDistributed(model.backbone)
+                    self.classes = model.classes
+                else:
+                    self.td = TimeDistributed(model)
+                    if num_classes > 0:
+                        self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
             else:
-                self.td = TimeDistributed(model)
-                if num_classes > 0:
-                    self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+                self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
 
     def hybrid_forward(self, F, x):
-        x = self.td(x)
+        if not self.feats:
+            x = self.td(x)
         if self.pool == 'mean':
             x = F.mean(x, axis=1)
         else:
