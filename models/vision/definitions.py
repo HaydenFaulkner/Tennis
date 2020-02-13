@@ -22,7 +22,7 @@ class FrameModel(HybridBlock):
             self.backbone = backbone
             self.classes = None
             if num_classes > 0:
-                self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+                self.classes = nn.Dense(num_classes, flatten=True)
 
     def hybrid_forward(self, F, x):
         if self.swap:
@@ -56,9 +56,9 @@ class TemporalPooling(HybridBlock):
                 else:
                     self.td = TimeDistributed(model)
                     if num_classes > 0:
-                        self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+                        self.classes = nn.Dense(num_classes, flatten=True)
             else:
-                self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+                self.classes = nn.Dense(num_classes, flatten=True)
 
     def hybrid_forward(self, F, x):
         if not self.feats:
@@ -98,7 +98,7 @@ class CNNRNN(HybridBlock):
             if num_classes == 0:
                 self.classes = model.classes
             elif num_classes > 0:
-                self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+                self.classes = nn.Dense(num_classes, flatten=True)
 
     def hybrid_forward(self, F, x):
         if not self.feats:
@@ -138,7 +138,7 @@ class TwoStreamModel(HybridBlock):
         with self.name_scope():
             self.features_rgb = model_rgb
             self.features_flow = model_flow
-            self.classes = nn.Dense(num_classes, flatten=True, activation='sigmoid')
+            self.classes = nn.Dense(num_classes, flatten=True)
 
     def hybrid_forward(self, F, x):
         rgb = F.slice_axis(x, axis=-3, begin=0, end=3)
