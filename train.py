@@ -157,6 +157,9 @@ def main(_argv):
         balance_train = False
         transform_train = transform_test
 
+    if FLAGS.window > 1:
+        transform_train = transform_test
+
     # Load datasets
     train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                           stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
