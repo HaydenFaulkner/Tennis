@@ -24,7 +24,7 @@ from metrics.vision import PRF1
 from models.vision.rdnet.r21d import get_r21d
 # from utils import frames_to_video
 
-from utils.transforms import TwoStreamTransform
+from utils.transforms import TwoStreamNormalize
 
 # disable autotune
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
@@ -144,16 +144,14 @@ def main(_argv):
         ])
 
         if bool(FLAGS.flow):
-            transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(FLAGS.data_shape),
-                TwoStreamTransform()  # doesn't do rand lighting
-            ])
 
             transform_test = transforms.Compose([
                 transforms.Resize(FLAGS.data_shape + 32),
                 transforms.CenterCrop(FLAGS.data_shape),
-                TwoStreamTransform(color_dist=False)
+                TwoStreamNormalize()
             ])
+
+            transform_train = transform_test
 
     if FLAGS.save_feats:
         balance_train = False
