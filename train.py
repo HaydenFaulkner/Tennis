@@ -301,6 +301,20 @@ def main(_argv):
         model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
 
     # model training complete, test it
+    best_score = -1
+    best_epoch = -1
+    with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
+        lines = f.readlines()
+        lines = [line.rstrip().split() for line in lines]
+        for ep, sc in lines:
+            if float(sc) > best_score:
+                best_epoch = int(ep)
+                best_score = float(sc)
+
+    logging.info('Testing best model from Epoch %d with score of %f' % (best_epoch, best_score))
+    model.load_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
+    logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
+
     tic = time.time()
     _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
@@ -433,6 +447,10 @@ def train_model(model, train_set, train_data, metrics, val_set, val_data, val_me
                         tb_sw.add_scalar(tag='Val_{}'.format(res[0]),
                                          scalar_value=float(res[1]),
                                          global_step=(epoch * len(train_data)))
+                    if res[0] == 'AVG_NB_f1':
+                        with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'a') as f:
+                            f.write(str(epoch)+'\t'+str(float(res[1]))+'\n')
+
                 metric.reset()
 
             str_ += ', Epoch Time: {:.1f}, Val Time: {:.1f}'.format(time.time() - tic, time.time() - vtic)
