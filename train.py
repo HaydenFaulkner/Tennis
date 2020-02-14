@@ -252,6 +252,26 @@ def main(_argv):
     model.collect_params().reset_ctx(ctx)
     model.hybridize()
 
+    if FLAGS.save_feats:
+        best_score = -1
+        best_epoch = -1
+        with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
+            lines = f.readlines()
+            lines = [line.rstrip().split() for line in lines]
+            for ep, sc in lines:
+                if float(sc) > best_score:
+                    best_epoch = int(ep)
+                    best_score = float(sc)
+
+        logging.info('Testing best model from Epoch %d with score of %f' % (best_epoch, best_score))
+        model.load_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
+        logging.info('Loaded model params: {}'.format(
+            os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
+
+        for data, sett in zip([train_data, val_data, test_data], [train_set, val_set, test_set]):
+            save_features(model, data, sett, ctx)
+        return
+
     start_epoch = 0
     if os.path.exists(os.path.join('models', FLAGS.model_id)):
         files = os.listdir(os.path.join('models', FLAGS.model_id))
@@ -262,11 +282,6 @@ def main(_argv):
             start_epoch = int(model_name.split('.')[0]) + 1
             model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
             logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
-
-    if FLAGS.save_feats:
-        for data, sett in zip([train_data, val_data, test_data], [train_set, val_set, test_set]):
-            save_features(model, data, sett, ctx)
-        return
 
     # Setup the optimiser
     trainer = gluon.Trainer(model.collect_params(), 'sgd',
