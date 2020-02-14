@@ -257,7 +257,7 @@ def main(_argv):
         best_epoch = -1
         with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
             lines = f.readlines()
-            lines = [line.rstrip().split() for line in lines]
+            lines = [line.rstrip().split() for line in lines][:-1]
             for ep, sc in lines:
                 if float(sc) > best_score:
                     best_epoch = int(ep)
@@ -320,7 +320,7 @@ def main(_argv):
     best_epoch = -1
     with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
         lines = f.readlines()
-        lines = [line.rstrip().split() for line in lines]
+        lines = [line.rstrip().split() for line in lines][:-1]
         for ep, sc in lines:
             if float(sc) > best_score:
                 best_epoch = int(ep)
