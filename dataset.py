@@ -15,7 +15,7 @@ from utils.video import video_to_frames
 
 class TennisSet:
     def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1,
-                 stride=1, window=1, model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None,
+                 stride=1, window=1, model_id='0000', split_id='02', flow=False, max_cap_len=-1, vocab=None,
                  inference=False, feats_model=None, save_feats=False):
         self._root = root
         self._captions = captions
