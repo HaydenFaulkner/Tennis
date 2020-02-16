@@ -34,7 +34,7 @@ class FrameModel(HybridBlock):
 
 
 class TemporalPooling(HybridBlock):
-    def __init__(self, model, num_classes=-1, pool='max', **kwargs):
+    def __init__(self, model, num_classes=-1, pool='max', feats=False, **kwargs):
         """
         A temporal pooling model
 
@@ -46,7 +46,7 @@ class TemporalPooling(HybridBlock):
         """
         super(TemporalPooling, self).__init__(**kwargs)
         self.pool = pool
-        self.feats = model is None
+        self.feats = feats
         with self.name_scope():
             self.classes = None
             if model is not None:

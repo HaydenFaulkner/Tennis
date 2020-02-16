@@ -37,7 +37,7 @@ flags.DEFINE_bool('freeze_backbone', False,
                   'Freeze the backbone model')
 flags.DEFINE_string('model_id', '0000',
                     'model identification string')
-flags.DEFINE_string('split_id', '01',
+flags.DEFINE_string('split_id', '02',
                     'split identification string, 01: single test vid; 02: all videos have test sections')
 flags.DEFINE_integer('log_interval', 100,
                      'Logging mini-batch interval.')
@@ -161,25 +161,31 @@ def main(_argv):
         transform_train = transform_test
 
     # Load datasets
-    train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
-                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                          balance=balance_train, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
-    val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
-                        stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                        balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+    if FLAGS.temp_pool not in ['max', 'mean']:
+        train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
+                              stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
+                              balance=balance_train, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+
+        logging.info(train_set)
+
+        val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
+                            stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
+                            balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+
+        logging.info(val_set)
+
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
                          balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
 
-    logging.info(train_set)
-    logging.info(val_set)
     logging.info(test_set)
 
     # Data Loaders
-    train_data = gluon.data.DataLoader(train_set, batch_size=FLAGS.batch_size,
-                                       shuffle=True, num_workers=FLAGS.num_workers)
-    val_data = gluon.data.DataLoader(val_set, batch_size=FLAGS.batch_size,
-                                     shuffle=False, num_workers=FLAGS.num_workers)
+    if FLAGS.temp_pool not in ['max', 'mean']:
+        train_data = gluon.data.DataLoader(train_set, batch_size=FLAGS.batch_size,
+                                           shuffle=True, num_workers=FLAGS.num_workers)
+        val_data = gluon.data.DataLoader(val_set, batch_size=FLAGS.batch_size,
+                                         shuffle=False, num_workers=FLAGS.num_workers)
     test_data = gluon.data.DataLoader(test_set, batch_size=FLAGS.batch_size,
                                       shuffle=False, num_workers=FLAGS.num_workers)
 
@@ -203,6 +209,9 @@ def main(_argv):
             model = FrameModel(backbone_net, len(train_set.classes), swap=True)
         else:
             model = FrameModel(backbone_net, len(train_set.classes))
+    elif FLAGS.temp_pool in ['max', 'mean']:
+        backbone_net = get_model(FLAGS.backbone, pretrained=True).features
+        model = FrameModel(backbone_net, len(test_set.classes))
     if FLAGS.window > 1:  # Time Distributed RNN
 
         if FLAGS.backbone_from_id and model is not None:
@@ -220,11 +229,11 @@ def main(_argv):
             for param in model.collect_params().values():
                 param.grad_req = 'null'
 
-        if FLAGS.temp_pool in ['max', 'mean']:
-            assert FLAGS.backbone_from_id  # if we doing temporal pooling ensure that we have loaded a pretrained net
-            model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0)
-        elif FLAGS.temp_pool in ['gru', 'lstm']:
-            model = CNNRNN(model, num_classes=len(train_set.classes), type=FLAGS.temp_pool, hidden_size=128)
+
+        if FLAGS.temp_pool in ['gru', 'lstm']:
+            model = CNNRNN(model, num_classes=len(test_set.classes), type=FLAGS.temp_pool, hidden_size=128)
+        elif FLAGS.temp_pool in ['mean', 'max']:
+            pass
         else:
             assert FLAGS.backbone == 'rdnet'  # ensure 3d net
             assert FLAGS.window == 32
@@ -246,7 +255,7 @@ def main(_argv):
     else:
         if FLAGS.window == 1:
             logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, 4096))))
-        else:
+        elif FLAGS.temp_pool not in ['max', 'mean']:
             logging.info(model.summary(mx.nd.ndarray.ones(shape=(1, FLAGS.window, 4096))))
 
     model.collect_params().reset_ctx(ctx)
@@ -288,26 +297,26 @@ def main(_argv):
                             {'learning_rate': FLAGS.lr, 'momentum': FLAGS.momentum, 'wd': FLAGS.wd})
 
     # Setup Metric/s
-    metrics = [Accuracy(label_names=train_set.classes),
-               mx.metric.TopKAccuracy(5, label_names=train_set.classes),
-               Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
-               Accuracy(name='accuracy_o', label_names=train_set.classes[0],
-                        ignore_labels=list(range(1, len(train_set.classes)))),
-               PRF1(label_names=train_set.classes)]
+    metrics = [Accuracy(label_names=test_set.classes),
+               mx.metric.TopKAccuracy(5, label_names=test_set.classes),
+               Accuracy(name='accuracy_no', label_names=test_set.classes[1:], ignore_labels=[0]),
+               Accuracy(name='accuracy_o', label_names=test_set.classes[0],
+                        ignore_labels=list(range(1, len(test_set.classes)))),
+               PRF1(label_names=test_set.classes)]
 
-    val_metrics = [Accuracy(label_names=train_set.classes),
-                   mx.metric.TopKAccuracy(5, label_names=train_set.classes),
-                   Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
-                   Accuracy(name='accuracy_o', label_names=train_set.classes[0],
-                            ignore_labels=list(range(1, len(train_set.classes)))),
-                   PRF1(label_names=train_set.classes)]
+    val_metrics = [Accuracy(label_names=test_set.classes),
+                   mx.metric.TopKAccuracy(5, label_names=test_set.classes),
+                   Accuracy(name='accuracy_no', label_names=test_set.classes[1:], ignore_labels=[0]),
+                   Accuracy(name='accuracy_o', label_names=test_set.classes[0],
+                            ignore_labels=list(range(1, len(test_set.classes)))),
+                   PRF1(label_names=test_set.classes)]
 
-    test_metrics = [Accuracy(label_names=train_set.classes),
-                    mx.metric.TopKAccuracy(5, label_names=train_set.classes),
-                    Accuracy(name='accuracy_no', label_names=train_set.classes[1:], ignore_labels=[0]),
-                    Accuracy(name='accuracy_o', label_names=train_set.classes[0],
-                             ignore_labels=list(range(1, len(train_set.classes)))),
-                    PRF1(label_names=train_set.classes)]
+    test_metrics = [Accuracy(label_names=test_set.classes),
+                    mx.metric.TopKAccuracy(5, label_names=test_set.classes),
+                    Accuracy(name='accuracy_no', label_names=test_set.classes[1:], ignore_labels=[0]),
+                    Accuracy(name='accuracy_o', label_names=test_set.classes[0],
+                             ignore_labels=list(range(1, len(test_set.classes)))),
+                    PRF1(label_names=test_set.classes)]
 
     # Setup Loss/es
     loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
@@ -316,9 +325,13 @@ def main(_argv):
         model = train_model(model, train_set, train_data, metrics, val_set, val_data, val_metrics, trainer, loss_fn, start_epoch, ctx, tb_sw)
 
     # model training complete, test it
+    if FLAGS.temp_pool not in ['max', 'mean']:
+        mod_path = os.path.join('models', FLAGS.model_id)
+    else:
+        mod_path = os.path.join('models', FLAGS.feats_model)
     best_score = -1
     best_epoch = -1
-    with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
+    with open(os.path.join(mod_path, 'scores.txt'), 'r') as f:
         lines = f.readlines()
         lines = [line.rstrip().split() for line in lines]
         for ep, sc in lines:
@@ -327,8 +340,12 @@ def main(_argv):
                 best_score = float(sc)
 
     logging.info('Testing best model from Epoch %d with score of %f' % (best_epoch, best_score))
-    model.load_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
-    logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
+    model.load_parameters(os.path.join(mod_path, "{:04d}.params".format(best_epoch)))
+    logging.info('Loaded model params: {}'.format(os.path.join(mod_path, "{:04d}.params".format(best_epoch))))
+
+    if FLAGS.temp_pool in ['max', 'mean']:
+        assert FLAGS.backbone_from_id or FLAGS.feats_model  # if we doing temporal pooling ensure that we have loaded a pretrained net
+        model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0, feats=FLAGS.feats_model!=None)
 
     tic = time.time()
     _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
@@ -480,7 +497,7 @@ def train_model(model, train_set, train_data, metrics, val_set, val_data, val_me
 # Testing/Validation function
 def test_model(net, loader, dataset, metrics, ctx, vis=False):
 
-    for i, batch in enumerate(loader):
+    for i, batch in tqdm(enumerate(loader), total=len(loader), desc='Testing'):
         data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
         labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
         idxs = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0, even_split=False)
