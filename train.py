@@ -164,19 +164,19 @@ def main(_argv):
     if FLAGS.temp_pool not in ['max', 'mean']:
         train_set = TennisSet(split='train', transform=transform_train, every=FLAGS.every[0], padding=FLAGS.padding,
                               stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                              balance=balance_train, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+                              balance=balance_train, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model, save_feats=FLAGS.save_feats)
 
         logging.info(train_set)
 
         val_set = TennisSet(split='val', transform=transform_test, every=FLAGS.every[1], padding=FLAGS.padding,
                             stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                            balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+                            balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model, save_feats=FLAGS.save_feats)
 
         logging.info(val_set)
 
     test_set = TennisSet(split='test', transform=transform_test, every=FLAGS.every[2], padding=FLAGS.padding,
                          stride=FLAGS.stride, window=FLAGS.window, model_id=FLAGS.model_id, split_id=FLAGS.split_id,
-                         balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model)
+                         balance=False, flow=bool(FLAGS.flow), feats_model=FLAGS.feats_model, save_feats=FLAGS.save_feats)
 
     logging.info(test_set)
 
@@ -228,7 +228,6 @@ def main(_argv):
         if FLAGS.freeze_backbone and model is not None:
             for param in model.collect_params().values():
                 param.grad_req = 'null'
-
 
         if FLAGS.temp_pool in ['gru', 'lstm']:
             model = CNNRNN(model, num_classes=len(test_set.classes), type=FLAGS.temp_pool, hidden_size=128)
@@ -537,6 +536,7 @@ def save_features(net, loader, dataset, ctx):
                 if not os.path.exists(feat_path):
                     os.makedirs(os.path.dirname(feat_path), exist_ok=True)
                     np.save(feat_path, feat[i])
+                    print("Saving %s" % feat_path)
 
 
 if __name__ == '__main__':

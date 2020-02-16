@@ -16,7 +16,7 @@ from utils.video import video_to_frames
 class TennisSet:
     def __init__(self, root='data', captions=False, transform=None, split='train', every=1, balance=True, padding=1,
                  stride=1, window=1, model_id='0000', split_id='01', flow=False, max_cap_len=-1, vocab=None,
-                 inference=False, feats_model=None):
+                 inference=False, feats_model=None, save_feats=False):
         self._root = root
         self._captions = captions
         self._split = split
@@ -28,6 +28,7 @@ class TennisSet:
         self._transform = transform
         self._flow = flow
         self._inference = inference
+        self._save_feats = save_feats
 
         self._videos_dir = os.path.join(root, "videos")
         self._frames_dir = os.path.join(root, "frames")
@@ -328,6 +329,24 @@ class TennisSet:
                 videos.add(s[0])
             videos = list(videos)
 
+            labels = dict()
+            for video in videos:
+                labels[video] = dict()
+
+            if self._save_feats:
+                for v in videos:
+                    min_f = 100000000
+                    max_f = 0
+                    for s in samples:
+                        if s[0] == v:
+                            min_f = min(min_f, s[1])
+                            max_f = max(max_f, s[1])
+                    for i in range(1, 256):
+                        samples.append([v, min_f-i])
+                        samples.append([v, max_f+i])
+                        labels[v][min_f-i] = 'OTH'
+                        labels[v][max_f+i] = 'OTH'
+
             # verify images exist, if not try and extract, if not again then ignore
             for i in range(2):  # go around twice, so if not all samples found extract, then re-check
                 samples_exist = list()
@@ -359,9 +378,7 @@ class TennisSet:
             samples = samples_exist
 
             # load the class labels for each sample
-            labels = dict()
             for video in videos:
-                labels[video] = dict()
                 with open(os.path.join(self._labels_dir, video + '.txt'), 'r') as f:
                     lines = f.readlines()
                     lines = [l.rstrip().split() for l in lines]
