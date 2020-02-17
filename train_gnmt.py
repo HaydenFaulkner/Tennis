@@ -104,7 +104,7 @@ flags.DEFINE_bool('freeze_backbone', False,
                   'Freeze the backbone model')
 flags.DEFINE_integer('data_shape', 512,
                      'The width and height for the input image to be cropped to.')
-flags.DEFINE_integer('every', 5,
+flags.DEFINE_integer('every', 1,
                      'Use only every this many frames: [train, val, test] splits')
 flags.DEFINE_string('feats_model', None,
                     'load CNN features as npy files from this model')
@@ -112,6 +112,7 @@ flags.DEFINE_string('feats_model', None,
 
 def main(_argv):
 
+    os.makedirs(os.path.join('models', 'captioning', FLAGS.model_id), exist_ok=True)
     # ctx = [mx.gpu(i) for i in range(FLAGS.num_gpus)] if FLAGS.num_gpus > 0 else [mx.cpu()]
     if FLAGS.num_gpus > 0:
         ctx = mx.gpu()
