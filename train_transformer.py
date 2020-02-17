@@ -51,7 +51,6 @@ from gluonnlp.model.transformer import get_transformer_encoder_decoder, Parallel
 from gluonnlp.utils.parallel import Parallel
 from utils.translation import BeamSearchTranslator
 
-from utils.logging import logging_config
 from metrics.bleu import _bpe_to_words, compute_bleu
 from utils import captioning
 from dataset import TennisSet
@@ -153,7 +152,6 @@ parser.add_argument('--trainable_cnn', type=bool, default=False,
                     help='if false we preextract feats in the transforms stage and dont have a source embedder')
 
 args = parser.parse_args()
-logging_config(os.path.join('models', 'captioning', args.model_id))
 logging.info(args)
 
 ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else \

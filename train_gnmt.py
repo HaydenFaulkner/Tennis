@@ -30,7 +30,6 @@ from gluonnlp.model.translation import NMTModel
 from gluonnlp.loss import MaskedSoftmaxCELoss
 from models.captioning.gnmt import get_gnmt_encoder_decoder
 from utils.translation import BeamSearchTranslator
-from utils.logging import logging_config
 from metrics.bleu import compute_bleu
 from utils import captioning
 from dataset import TennisSet
@@ -112,7 +111,6 @@ flags.DEFINE_string('feats_model', None,
 
 
 def main(_argv):
-    logging_config(os.path.join('models', 'captioning', FLAGS.model_id))
 
     # ctx = [mx.gpu(i) for i in range(FLAGS.num_gpus)] if FLAGS.num_gpus > 0 else [mx.cpu()]
     if FLAGS.num_gpus > 0:
