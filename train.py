@@ -349,7 +349,7 @@ def main(_argv):
     tic = time.time()
     _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
-    if FLAGS.temp_pool  not in ['max', 'mean']:
+    if FLAGS.temp_pool not in ['max', 'mean']:
         str_ = 'Train set:'
         for i in range(len(train_set.classes)):
             str_ += '\n'
