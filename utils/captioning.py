@@ -17,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from absl.flags import FLAGS
 import io
 import logging
 from mxnet import gluon
 import gluonnlp as nlp
 import gluonnlp.data.batchify as btf
 
-def get_dataloaders(data_train, data_val, data_test, args, use_average_length=False, num_shards=0, num_workers=8):
+def get_dataloaders(data_train, data_val, data_test, use_average_length=False, num_shards=0, num_workers=8):
     """Create data loaders for training/validation/test."""
     data_train_lengths = data_train.get_data_lens()  # get_data_lengths(data_train)
     data_val_lengths = data_val.get_data_lens()  # get_data_lengths(data_val)
@@ -35,18 +36,18 @@ def get_dataloaders(data_train, data_val, data_test, args, use_average_length=Fa
                                  btf.Stack())
     target_val_lengths = list(map(lambda x: x[-1], data_val_lengths))
     target_test_lengths = list(map(lambda x: x[-1], data_test_lengths))
-    if args.bucket_scheme == 'constant':
+    if FLAGS.bucket_scheme == 'constant':
         bucket_scheme = nlp.data.ConstWidthBucket()
-    elif args.bucket_scheme == 'linear':
+    elif FLAGS.bucket_scheme == 'linear':
         bucket_scheme = nlp.data.LinearWidthBucket()
-    elif args.bucket_scheme == 'exp':
+    elif FLAGS.bucket_scheme == 'exp':
         bucket_scheme = nlp.data.ExpWidthBucket(bucket_len_step=1.2)
     else:
         raise NotImplementedError
     train_batch_sampler = nlp.data.FixedBucketSampler(lengths=data_train_lengths,
-                                                      batch_size=args.batch_size,
-                                                      num_buckets=args.num_buckets,
-                                                      ratio=args.bucket_ratio,
+                                                      batch_size=FLAGS.batch_size,
+                                                      num_buckets=FLAGS.num_buckets,
+                                                      ratio=FLAGS.bucket_ratio,
                                                       shuffle=True,
                                                       use_average_length=use_average_length,
                                                       num_shards=num_shards,
@@ -58,9 +59,9 @@ def get_dataloaders(data_train, data_val, data_test, args, use_average_length=Fa
                                                    num_workers=num_workers)
 
     val_batch_sampler = nlp.data.FixedBucketSampler(lengths=target_val_lengths,
-                                                    batch_size=args.test_batch_size,
-                                                    num_buckets=args.num_buckets,
-                                                    ratio=args.bucket_ratio,
+                                                    batch_size=FLAGS.test_batch_size,
+                                                    num_buckets=FLAGS.num_buckets,
+                                                    ratio=FLAGS.bucket_ratio,
                                                     shuffle=False,
                                                     use_average_length=use_average_length,
                                                     bucket_scheme=bucket_scheme)
@@ -70,9 +71,9 @@ def get_dataloaders(data_train, data_val, data_test, args, use_average_length=Fa
                                             batchify_fn=test_batchify_fn,
                                             num_workers=num_workers)
     test_batch_sampler = nlp.data.FixedBucketSampler(lengths=target_test_lengths,
-                                                     batch_size=args.test_batch_size,
-                                                     num_buckets=args.num_buckets,
-                                                     ratio=args.bucket_ratio,
+                                                     batch_size=FLAGS.test_batch_size,
+                                                     num_buckets=FLAGS.num_buckets,
+                                                     ratio=FLAGS.bucket_ratio,
                                                      shuffle=False,
                                                      use_average_length=use_average_length,
                                                      bucket_scheme=bucket_scheme)

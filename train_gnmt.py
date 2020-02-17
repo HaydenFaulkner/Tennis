@@ -2,8 +2,6 @@
 Google Neural Machine Translation
 =================================
 
-This example shows how to implement the GNMT model with Gluon NLP Toolkit.
-
 @article{wu2016google,
   title={Google's neural machine translation system:
    Bridging the gap between human and machine translation},
@@ -15,27 +13,9 @@ This example shows how to implement the GNMT model with Gluon NLP Toolkit.
 }
 """
 
-# coding: utf-8
 
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-# pylint:disable=redefined-outer-name,logging-format-interpolation
-
-import argparse
+from absl import app, flags
+from absl.flags import FLAGS
 import time
 import random
 import os
@@ -63,152 +43,168 @@ np.random.seed(100)
 random.seed(100)
 mx.random.seed(10000)
 
-parser = argparse.ArgumentParser(description='Neural Machine Translation Example.'
-                                             'We train the Google NMT model')
-parser.add_argument('--model_id', type=str, default='0000', help='model identification string')
-parser.add_argument('--src_lang', type=str, default='en', help='Source language')
-parser.add_argument('--tgt_lang', type=str, default='vi', help='Target language')
-parser.add_argument('--epochs', type=int, default=40, help='upper epoch limit')
-parser.add_argument('--num_hidden', type=int, default=128, help='Dimension of the embedding vectors and states.')
-parser.add_argument('--dropout', type=float, default=0.2,
-                    help='dropout applied to layers (0 = no dropout)')
-parser.add_argument('--num_layers', type=int, default=2, help='number of layers in the encoder'
-                                                              ' and decoder')
-parser.add_argument('--num_bi_layers', type=int, default=1,
-                    help='number of bidirectional layers in the encoder and decoder')
-parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
-parser.add_argument('--beam_size', type=int, default=4, help='Beam size')
-parser.add_argument('--lp_alpha', type=float, default=1.0,
-                    help='Alpha used in calculating the length penalty')
-parser.add_argument('--lp_k', type=int, default=5, help='K used in calculating the length penalty')
-parser.add_argument('--test_batch_size', type=int, default=32, help='Test batch size')
-parser.add_argument('--num_buckets', type=int, default=5, help='Bucket number')
-parser.add_argument('--bucket_scheme', type=str, default='constant',
-                    help='Strategy for generating bucket keys. It supports: '
-                         '"constant": all the buckets have the same width; '
-                         '"linear": the width of bucket increases linearly; '
-                         '"exp": the width of bucket increases exponentially')
-parser.add_argument('--bucket_ratio', type=float, default=0.0, help='Ratio for increasing the '
-                                                                    'throughput of the bucketing')
-# parser.add_argument('--src_max_len', type=int, default=50, help='Maximum length of the source '
-#                                                                 'sentence')
-parser.add_argument('--tgt_max_len', type=int, default=50, help='Maximum length of the target '
-                                                                'sentence')
-parser.add_argument('--optimizer', type=str, default='adam', help='optimization algorithm')
-parser.add_argument('--lr', type=float, default=1E-3, help='Initial learning rate')
-parser.add_argument('--lr_update_factor', type=float, default=0.5,
-                    help='Learning rate decay factor')
-parser.add_argument('--clip', type=float, default=5.0, help='gradient clipping')
-parser.add_argument('--log_interval', type=int, default=100, metavar='N', help='report interval')
-parser.add_argument('--gpus', type=str,
-                    help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.'
-                         '(using single gpu is suggested)')
-parser.add_argument('--backbone', type=str, default='DenseNet121',
-                    help='backbone cnn architecture')
-parser.add_argument('--backbone_from_id', type=str, default=None,
-                    help='backbone cnn architecture loading from an ID')
-parser.add_argument('--freeze_backbone', type=bool, default=False,
-                    help='freeze the backbone cnn')
-parser.add_argument('--data_shape', type=int, default=512,
-                    help='image shape w,h')
-parser.add_argument('--every', type=int, default=5,
-                    help='only do every nth frame')
-parser.add_argument('--trainable_cnn', type=bool, default=False,
-                    help='if false we preextract feats in the transforms stage and dont have a source embedder')
-args = parser.parse_args()
-print(args)
-logging_config(os.path.join('models', 'captioning', args.model_id))
+flags.DEFINE_string('model_id', '0000',
+                    'model identification string')
+flags.DEFINE_integer('epochs', 40,
+                     'How many training epochs to complete')
+flags.DEFINE_integer('num_hidden', 128,
+                     'Dimension of the embedding vectors and states')
+flags.DEFINE_float('dropout', 0.2,
+                   'dropout applied to layers (0 = no dropout)')
+flags.DEFINE_integer('num_layers', 2,
+                     'Number of layers in the encoder  and decoder')
+flags.DEFINE_integer('num_bi_layers', 1,
+                     'Number of bidirectional layers in the encoder and decoder')
 
-ctx = [mx.cpu()] if args.gpus is None or args.gpus == '' else mx.gpu(int(args.gpus))
+flags.DEFINE_integer('batch_size', 128,
+                     'Batch size for detection: higher faster, but more memory intensive.')
 
-backbone_net = get_model(args.backbone, pretrained=True, ctx=ctx).features
-cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
-if args.backbone_from_id:
-    if os.path.exists(os.path.join('models', 'vision', args.backbone_from_id)):
-        files = os.listdir(os.path.join('models', 'vision', args.backbone_from_id))
-        files = [f for f in files if f[-7:] == '.params']
-        if len(files) > 0:
-            files = sorted(files, reverse=True)  # put latest model first
-            model_name = files[0]
-            cnn_model.load_parameters(os.path.join('models', 'vision', args.backbone_from_id, model_name), ctx=ctx)
-            logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', args.backbone_from_id, model_name)))
+flags.DEFINE_integer('beam_size', 4,
+                     'Beam size.')
+
+flags.DEFINE_float('lp_alpha', 1.0,
+                   'Alpha used in calculating the length penalty')
+flags.DEFINE_integer('lp_k', 5,
+                     'K used in calculating the length penalty')
+flags.DEFINE_integer('test_batch_size', 32,
+                     'Test batch size')
+flags.DEFINE_integer('num_buckets', 5,
+                     'Bucket number')
+
+flags.DEFINE_string('bucket_scheme', 'constant',
+                    'Strategy for generating bucket keys. It supports: '
+                    '"constant": all the buckets have the same width; '
+                    '"linear": the width of bucket increases linearly; '
+                    '"exp": the width of bucket increases exponentially')
+
+
+flags.DEFINE_float('bucket_ratio', 0.0,
+                   'Ratio for increasing the throughput of the bucketing')
+flags.DEFINE_integer('tgt_max_len', 50,
+                     'Maximum length of the target sentence')
+flags.DEFINE_string('optimizer', 'adam',
+                    'optimization algorithm')
+flags.DEFINE_float('lr', 1E-3,
+                   'Initial learning rate')
+flags.DEFINE_float('lr_update_factor', 0.5,
+                   'Learning rate decay factor')
+flags.DEFINE_float('clip', 5.0,
+                   'gradient clipping')
+
+flags.DEFINE_integer('log_interval', 100,
+                     'Logging mini-batch interval.')
+
+flags.DEFINE_integer('num_gpus', 1,
+                     'Number of GPUs to use')
+
+flags.DEFINE_string('backbone', 'DenseNet121',
+                    'Backbone CNN name')
+flags.DEFINE_string('backbone_from_id',  None,
+                    'Load a backbone model from a model_id, used for Temporal Pooling with fine-tuned CNN')
+flags.DEFINE_bool('freeze_backbone', False,
+                  'Freeze the backbone model')
+flags.DEFINE_integer('data_shape', 512,
+                     'The width and height for the input image to be cropped to.')
+flags.DEFINE_integer('every', 5,
+                     'Use only every this many frames: [train, val, test] splits')
+flags.DEFINE_string('feats_model', None,
+                    'load CNN features as npy files from this model')
+
+
+def main(_argv):
+    logging_config(os.path.join('models', 'captioning', FLAGS.model_id))
+
+    # ctx = [mx.gpu(i) for i in range(FLAGS.num_gpus)] if FLAGS.num_gpus > 0 else [mx.cpu()]
+    if FLAGS.num_gpus > 0:
+        ctx = mx.gpu()
     else:
-        raise FileNotFoundError('{}'.format(os.path.join('models', 'vision', args.backbone_from_id)))
+        ctx = mx.cpu()
 
-if args.freeze_backbone:
-    for param in cnn_model.collect_params().values():
-        param.grad_req = 'null'
+    if FLAGS.feats_model is None:
+        backbone_net = get_model(FLAGS.backbone, pretrained=True, ctx=ctx).features
+        cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
+        if FLAGS.backbone_from_id:
+            if os.path.exists(os.path.join('models', 'vision', FLAGS.backbone_from_id)):
+                files = os.listdir(os.path.join('models', 'vision', FLAGS.backbone_from_id))
+                files = [f for f in files if f[-7:] == '.params']
+                if len(files) > 0:
+                    files = sorted(files, reverse=True)  # put latest model first
+                    model_name = files[0]
+                    cnn_model.load_parameters(os.path.join('models', 'vision', FLAGS.backbone_from_id, model_name), ctx=ctx)
+                    logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', FLAGS.backbone_from_id, model_name)))
+            else:
+                raise FileNotFoundError('{}'.format(os.path.join('models', 'vision', FLAGS.backbone_from_id)))
 
-cnn_model = TimeDistributed(cnn_model.backbone)
+        if FLAGS.freeze_backbone:
+            for param in cnn_model.collect_params().values():
+                param.grad_req = 'null'
 
-if args.trainable_cnn:
-    encoder_model = cnn_model
-else:
-    from mxnet.gluon import nn
-    encoder_model = nn.HybridSequential(prefix='src_embed_')
-    with encoder_model.name_scope():
-        encoder_model.add(nn.Dropout(rate=0.0))
+        cnn_model = TimeDistributed(cnn_model.backbone)
 
-transform_train = transforms.Compose([
-    transforms.RandomResizedCrop(args.data_shape),
-    transforms.RandomFlipLeftRight(),
-    transforms.RandomColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
-    transforms.RandomLighting(0.1),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+        encoder_model = cnn_model
 
-transform_test = transforms.Compose([
-    transforms.Resize(args.data_shape + 32),
-    transforms.CenterCrop(args.data_shape),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(FLAGS.data_shape),
+            transforms.RandomFlipLeftRight(),
+            transforms.RandomColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            transforms.RandomLighting(0.1),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
 
-data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=args.tgt_max_len, every=args.every)
-data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
-data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab, every=args.every, inference=True)
+        transform_test = transforms.Compose([
+            transforms.Resize(FLAGS.data_shape + 32),
+            transforms.CenterCrop(FLAGS.data_shape),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
 
-val_tgt_sentences = data_val.get_captions(split=True)  # split as bleu set as tweaked otherwise dont split
-test_tgt_sentences = data_test.get_captions(split=True)
-captioning.write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', args.model_id, 'val_gt.txt'))
-captioning.write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', args.model_id, 'test_gt.txt'))
+    else:
+        from mxnet.gluon import nn
+        encoder_model = nn.HybridSequential(prefix='src_embed_')
+        with encoder_model.name_scope():
+            encoder_model.add(nn.Dropout(rate=0.0))
 
-encoder, decoder = get_gnmt_encoder_decoder(hidden_size=args.num_hidden,
-                                            dropout=args.dropout,
-                                            num_layers=args.num_layers,
-                                            num_bi_layers=args.num_bi_layers)
-model = NMTModel(src_vocab=None, tgt_vocab=data_train.vocab, encoder=encoder, decoder=decoder,
-                 embed_size=args.num_hidden, prefix='gnmt_', src_embed=encoder_model)
-model.initialize(init=mx.init.Uniform(0.1), ctx=ctx)
-static_alloc = True
-model.hybridize(static_alloc=static_alloc)
-logging.info(model)
+        transform_train = None
+        transform_test = None
 
-translator = BeamSearchTranslator(model=model, beam_size=args.beam_size,
-                                  scorer=nlp.model.BeamSearchScorer(alpha=args.lp_alpha,
-                                                                    K=args.lp_k),
-                                  max_length=args.tgt_max_len + 100)
-logging.info('Use beam_size={}, alpha={}, K={}'.format(args.beam_size, args.lp_alpha, args.lp_k))
+    data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=FLAGS.tgt_max_len,
+                           every=FLAGS.every, feats_model=FLAGS.feats_model)
+    data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab,
+                         every=FLAGS.every, inference=True, feats_model=FLAGS.feats_model)
+    data_test = TennisSet(split='test', transform=transform_test, captions=True, vocab=data_train.vocab,
+                          every=FLAGS.every, inference=True, feats_model=FLAGS.feats_model)
+
+    val_tgt_sentences = data_val.get_captions(split=True)
+    test_tgt_sentences = data_test.get_captions(split=True)
+    captioning.write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'val_gt.txt'))
+    captioning.write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'test_gt.txt'))
+
+    encoder, decoder = get_gnmt_encoder_decoder(hidden_size=FLAGS.num_hidden,
+                                                dropout=FLAGS.dropout,
+                                                num_layers=FLAGS.num_layers,
+                                                num_bi_layers=FLAGS.num_bi_layers)
+    model = NMTModel(src_vocab=None, tgt_vocab=data_train.vocab, encoder=encoder, decoder=decoder,
+                     embed_size=FLAGS.num_hidden, prefix='gnmt_', src_embed=encoder_model)
+    model.initialize(init=mx.init.Uniform(0.1), ctx=ctx)
+    static_alloc = True
+    model.hybridize(static_alloc=static_alloc)
+    logging.info(model)
+
+    translator = BeamSearchTranslator(model=model, beam_size=FLAGS.beam_size,
+                                      scorer=nlp.model.BeamSearchScorer(alpha=FLAGS.lp_alpha,
+                                                                        K=FLAGS.lp_k),
+                                      max_length=FLAGS.tgt_max_len + 100)
+    logging.info('Use beam_size={}, alpha={}, K={}'.format(FLAGS.beam_size, FLAGS.lp_alpha, FLAGS.lp_k))
+
+    loss_function = MaskedSoftmaxCELoss()
+    loss_function.hybridize(static_alloc=static_alloc)
+
+    train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx)
 
 
-loss_function = MaskedSoftmaxCELoss()
-loss_function.hybridize(static_alloc=static_alloc)
-
-
-def evaluate(data_loader):
-    """Evaluate given the data loader
-
-    Parameters
-    ----------
-    data_loader : DataLoader
-
-    Returns
-    -------
-    avg_loss : float
-        Average loss
-    real_translation_out : list of list of str
-        The translation output
+def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
+    """Evaluate
     """
     translation_out = []
     all_inst_ids = []
@@ -221,12 +217,14 @@ def evaluate(data_loader):
         tgt_seq = tgt_seq.as_in_context(ctx)
         src_valid_length = src_valid_length.as_in_context(ctx)
         tgt_valid_length = tgt_valid_length.as_in_context(ctx)
+
         # Calculating Loss
         out, _ = model(src_seq, tgt_seq[:, :-1], src_valid_length, tgt_valid_length - 1)
         loss = loss_function(out, tgt_seq[:, 1:], tgt_valid_length - 1).mean().asscalar()
         all_inst_ids.extend(inst_ids.asnumpy().astype(np.int32).tolist())
         avg_loss += loss * (tgt_seq.shape[1] - 1)
         avg_loss_denom += (tgt_seq.shape[1] - 1)
+
         # Translate
         samples, _, sample_valid_length =\
             translator.translate(src_seq=src_seq, src_valid_length=src_valid_length)
@@ -236,26 +234,29 @@ def evaluate(data_loader):
             translation_out.append(
                 [data_train.vocab.idx_to_token[ele] for ele in
                  max_score_sample[i][1:(sample_valid_length[i] - 1)]])
+
     avg_loss = avg_loss / avg_loss_denom
+
     real_translation_out = [None for _ in range(len(all_inst_ids))]
     for ind, sentence in zip(all_inst_ids, translation_out):
         real_translation_out[ind] = sentence
+
     return avg_loss, real_translation_out
 
 
-def train():
-    """Training function."""
-    trainer = gluon.Trainer(model.collect_params(), args.optimizer, {'learning_rate': args.lr})
+def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx):
+    """Training function.
+    """
 
-    train_data_loader, val_data_loader, test_data_loader = captioning.get_dataloaders(data_train, data_val, data_test, args)
+    trainer = gluon.Trainer(model.collect_params(), FLAGS.optimizer, {'learning_rate': FLAGS.lr})
+
+    train_data_loader, val_data_loader, test_data_loader = captioning.get_dataloaders(data_train, data_val, data_test)
 
     best_valid_bleu = 0.0
-    for epoch_id in range(args.epochs):
+    for epoch_id in range(FLAGS.epochs):
         log_avg_loss = 0
-        log_avg_gnorm = 0
         log_wc = 0
         log_start_time = time.time()
-        print(epoch_id)
         for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length) in enumerate(train_data_loader):
             if batch_id == len(train_data_loader)-1:
                 break  # errors on last batch, jump out for now
@@ -264,72 +265,78 @@ def train():
             tgt_seq = tgt_seq.as_in_context(ctx)
             src_valid_length = src_valid_length.as_in_context(ctx)
             tgt_valid_length = tgt_valid_length.as_in_context(ctx)
-            if not args.trainable_cnn:  # for memory reasons we run through the encoder here and not in the RNN, can't back prop
-                src_seq = cnn_model(src_seq)
+
             with mx.autograd.record():
                 out, _ = model(src_seq, tgt_seq[:, :-1], src_valid_length, tgt_valid_length - 1)
                 loss = loss_function(out, tgt_seq[:, 1:], tgt_valid_length - 1).mean()
                 loss = loss * (tgt_seq.shape[1] - 1) / (tgt_valid_length - 1).mean()
                 loss.backward()
-            # grads = [p.grad(ctx) for p in model.collect_params().values()]
-            # gnorm = gluon.utils.clip_global_norm(grads, args.clip)
+
             trainer.step(1)
             src_wc = src_valid_length.sum().asscalar()
             tgt_wc = (tgt_valid_length - 1).sum().asscalar()
             step_loss = loss.asscalar()
             log_avg_loss += step_loss
-            # log_avg_gnorm += gnorm
             log_wc += src_wc + tgt_wc
-            if (batch_id + 1) % args.log_interval == 0:
+            if (batch_id + 1) % FLAGS.log_interval == 0:
                 wps = log_wc / (time.time() - log_start_time)
-                logging.info('[Epoch {} Batch {}/{}] loss={:.4f}, ppl={:.4f} '#, gnorm={:.4f}, '
-                             'throughput={:.2f}K wps, wc={:.2f}K'
+                logging.info('[Epoch {} Batch {}/{}] loss={:.4f}, ppl={:.4f}  throughput={:.2f}K wps, wc={:.2f}K'
                              .format(epoch_id, batch_id + 1, len(train_data_loader),
-                                     log_avg_loss / args.log_interval,
-                                     np.exp(log_avg_loss / args.log_interval),
-                                     # log_avg_gnorm / args.log_interval,
+                                     log_avg_loss / FLAGS.log_interval,
+                                     np.exp(log_avg_loss / FLAGS.log_interval),
                                      wps / 1000, log_wc / 1000))
                 log_start_time = time.time()
                 log_avg_loss = 0
-                # log_avg_gnorm = 0
                 log_wc = 0
-        valid_loss, valid_translation_out = evaluate(val_data_loader)
+
+        valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
         valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
-        logging.info('[Epoch {}] valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'
-                     .format(epoch_id, valid_loss, np.exp(valid_loss), valid_bleu_score * 100))
-        test_loss, test_translation_out = evaluate(test_data_loader)
+        logging.info('[Epoch {}] valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(epoch_id,
+                                                                                                valid_loss,
+                                                                                                np.exp(valid_loss),
+                                                                                                valid_bleu_score * 100))
+
+        test_loss, test_translation_out = evaluate(test_data_loader, model, loss_function, translator, data_train, ctx)
         test_bleu_score, _, _, _, _ = compute_bleu([test_tgt_sentences], test_translation_out)
-        logging.info('[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'
-                     .format(epoch_id, test_loss, np.exp(test_loss), test_bleu_score * 100))
-        captioning.write_sentences(valid_translation_out,
-                                   os.path.join('models', 'captioning', args.model_id,
-                                                   'epoch{:d}_valid_out.txt').format(epoch_id))
-        captioning.write_sentences(test_translation_out,
-                                   os.path.join('models', 'captioning', args.model_id,
-                                                   'epoch{:d}_test_out.txt').format(epoch_id))
+        logging.info('[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'.format(epoch_id,
+                                                                                             test_loss,
+                                                                                             np.exp(test_loss),
+                                                                                             test_bleu_score * 100))
+
+        captioning.write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
+                                                                       'epoch{:d}_valid_out.txt').format(epoch_id))
+        captioning.write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
+                                                                      'epoch{:d}_test_out.txt').format(epoch_id))
         if valid_bleu_score > best_valid_bleu:
             best_valid_bleu = valid_bleu_score
-            save_path = os.path.join('models', 'captioning', args.model_id, 'valid_best.params')
+            save_path = os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')
             logging.info('Save best parameters to {}'.format(save_path))
             model.save_parameters(save_path)
-        if epoch_id + 1 >= (args.epochs * 2) // 3:
-            new_lr = trainer.learning_rate * args.lr_update_factor
+
+        if epoch_id + 1 >= (FLAGS.epochs * 2) // 3:
+            new_lr = trainer.learning_rate * FLAGS.lr_update_factor
             logging.info('Learning rate change to {}'.format(new_lr))
             trainer.set_learning_rate(new_lr)
-    if os.path.exists(os.path.join('models', 'captioning', args.model_id, 'valid_best.params')):
-        model.load_parameters(os.path.join('models', 'captioning', args.model_id, 'valid_best.params'))
-    valid_loss, valid_translation_out = evaluate(val_data_loader)
+
+    if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')):
+        model.load_parameters(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params'))
+
+    valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
     valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
-    logging.info('Best model valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'
-                 .format(valid_loss, np.exp(valid_loss), valid_bleu_score * 100))
-    test_loss, test_translation_out = evaluate(test_data_loader)
+    logging.info('Best model valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(valid_loss,
+                                                                                            np.exp(valid_loss),
+                                                                                            valid_bleu_score * 100))
+
+    test_loss, test_translation_out = evaluate(test_data_loader, model, loss_function, translator, data_train, ctx)
     test_bleu_score, _, _, _, _ = compute_bleu([test_tgt_sentences], test_translation_out)
-    logging.info('Best model test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'
-                 .format(test_loss, np.exp(test_loss), test_bleu_score * 100))
+    logging.info('Best model test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}' .format(test_loss,
+                                                                                          np.exp(test_loss),
+                                                                                          test_bleu_score * 100))
+
     captioning.write_sentences(valid_translation_out,
-                               os.path.join('models', 'captioning', args.model_id, 'best_valid_out.txt'))
+                               os.path.join('models', 'captioning', FLAGS.model_id, 'best_valid_out.txt'))
     captioning.write_sentences(test_translation_out,
-                               os.path.join('models', 'captioning', args.model_id, 'best_test_out.txt'))
+                               os.path.join('models', 'captioning', FLAGS.model_id, 'best_test_out.txt'))
 
 
 def write_sentences(sentences, file_path):
@@ -342,4 +349,7 @@ def write_sentences(sentences, file_path):
 
 
 if __name__ == '__main__':
-    train()
+    try:
+        app.run(main)
+    except SystemExit:
+        pass
