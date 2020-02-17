@@ -349,16 +349,17 @@ def main(_argv):
     tic = time.time()
     _ = test_model(model, test_data, test_set, test_metrics, ctx, vis=FLAGS.vis)
 
-    str_ = 'Train set:'
-    for i in range(len(train_set.classes)):
-        str_ += '\n'
-        for j in range(len(train_set.classes)):
-            str_ += str(metrics[4].mat[i, j]) + '\t'
-    print(str_)
+    if FLAGS.temp_pool  not in ['max', 'mean']:
+        str_ = 'Train set:'
+        for i in range(len(train_set.classes)):
+            str_ += '\n'
+            for j in range(len(train_set.classes)):
+                str_ += str(metrics[4].mat[i, j]) + '\t'
+        print(str_)
     str_ = 'Test set:'
-    for i in range(len(train_set.classes)):
+    for i in range(len(test_set.classes)):
         str_ += '\n'
-        for j in range(len(train_set.classes)):
+        for j in range(len(test_set.classes)):
             str_ += str(test_metrics[4].mat[i, j]) + '\t'
     print(str_)
 
