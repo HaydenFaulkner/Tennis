@@ -329,12 +329,13 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                 log_avg_loss = 0
                 log_wc = 0
 
-                if tb_sw:
-                    embs = mx.nd.array(list(range(len(data_train.vocab)))).as_in_context(ctx)
-                    embs = model.tgt_embed(embs)
-                    labs = data_train.vocab.idx_to_token
-                    tb_sw.add_embedding(mat=embs.asnumpy(), metadata=labs,
-                                        global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+        # log embeddings
+        if tb_sw:
+            embs = mx.nd.array(list(range(len(data_train.vocab)))).as_in_context(ctx)
+            embs = model.tgt_embed(embs)
+            labs = data_train.vocab.idx_to_token
+            tb_sw.add_embedding(mat=embs.asnumpy(), metadata=labs,
+                                global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
 
         # calculate validation and loss stats at end of epoch
         valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
