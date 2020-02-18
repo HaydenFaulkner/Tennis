@@ -20,6 +20,8 @@ import time
 import random
 import os
 import io
+import sys
+from tensorboardX import SummaryWriter
 import logging
 import numpy as np
 import mxnet as mx
@@ -31,7 +33,7 @@ from gluonnlp.loss import MaskedSoftmaxCELoss
 from models.captioning.gnmt import get_gnmt_encoder_decoder
 from utils.translation import BeamSearchTranslator
 from metrics.bleu import compute_bleu
-from utils import captioning
+from utils.captioning import get_dataloaders, write_sentences, get_comp_str
 from dataset import TennisSet
 from models.vision.definitions import FrameModel
 from utils.layers import TimeDistributed
@@ -44,7 +46,7 @@ mx.random.seed(10000)
 
 flags.DEFINE_string('model_id', '0000',
                     'model identification string')
-flags.DEFINE_integer('epochs', 40,
+flags.DEFINE_integer('epochs', 10,
                      'How many training epochs to complete')
 flags.DEFINE_integer('num_hidden', 128,
                      'Dimension of the embedding vectors and states')
@@ -55,6 +57,8 @@ flags.DEFINE_integer('num_layers', 2,
 flags.DEFINE_integer('num_bi_layers', 1,
                      'Number of bidirectional layers in the encoder and decoder')
 
+flags.DEFINE_string('cell_type', 'gru',
+                    'gru or lstm')
 flags.DEFINE_integer('batch_size', 128,
                      'Batch size for detection: higher faster, but more memory intensive.')
 
@@ -113,12 +117,30 @@ flags.DEFINE_string('feats_model', None,
 def main(_argv):
 
     os.makedirs(os.path.join('models', 'captioning', FLAGS.model_id), exist_ok=True)
-    # ctx = [mx.gpu(i) for i in range(FLAGS.num_gpus)] if FLAGS.num_gpus > 0 else [mx.cpu()]
-    if FLAGS.num_gpus > 0:
+
+    if FLAGS.num_gpus > 0:  # only supports 1 GPU
         ctx = mx.gpu()
     else:
         ctx = mx.cpu()
 
+    # Set up logging
+    logging.basicConfig()
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    log_file_path = os.path.join('models', 'captioning', FLAGS.model_id, 'log.txt')
+    log_dir = os.path.dirname(log_file_path)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    fh = logging.FileHandler(log_file_path)
+    logger.addHandler(fh)
+
+    key_flags = FLAGS.get_key_flags_for_module(sys.argv[0])
+    logging.info('\n'.join(f.serialize() for f in key_flags))
+
+    # set up tensorboard summary writer
+    tb_sw = SummaryWriter(log_dir=os.path.join(log_dir, 'tb'), comment=FLAGS.model_id)
+
+    # are we using features or do we include the CNN?
     if FLAGS.feats_model is None:
         backbone_net = get_model(FLAGS.backbone, pretrained=True, ctx=ctx).features
         cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
@@ -167,6 +189,7 @@ def main(_argv):
         transform_train = None
         transform_test = None
 
+    # setup the data
     data_train = TennisSet(split='train', transform=transform_train, captions=True, max_cap_len=FLAGS.tgt_max_len,
                            every=FLAGS.every, feats_model=FLAGS.feats_model)
     data_val = TennisSet(split='val', transform=transform_test, captions=True, vocab=data_train.vocab,
@@ -176,30 +199,35 @@ def main(_argv):
 
     val_tgt_sentences = data_val.get_captions(split=True)
     test_tgt_sentences = data_test.get_captions(split=True)
-    captioning.write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'val_gt.txt'))
-    captioning.write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'test_gt.txt'))
+    write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'val_gt.txt'))
+    write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'test_gt.txt'))
 
-    encoder, decoder = get_gnmt_encoder_decoder(hidden_size=FLAGS.num_hidden,
+    # setup the model
+    encoder, decoder = get_gnmt_encoder_decoder(cell_type=FLAGS.cell_type,
+                                                hidden_size=FLAGS.num_hidden,
                                                 dropout=FLAGS.dropout,
                                                 num_layers=FLAGS.num_layers,
                                                 num_bi_layers=FLAGS.num_bi_layers)
     model = NMTModel(src_vocab=None, tgt_vocab=data_train.vocab, encoder=encoder, decoder=decoder,
                      embed_size=FLAGS.num_hidden, prefix='gnmt_', src_embed=encoder_model)
+
     model.initialize(init=mx.init.Uniform(0.1), ctx=ctx)
     static_alloc = True
     model.hybridize(static_alloc=static_alloc)
     logging.info(model)
 
+    # setup the beam search
     translator = BeamSearchTranslator(model=model, beam_size=FLAGS.beam_size,
-                                      scorer=nlp.model.BeamSearchScorer(alpha=FLAGS.lp_alpha,
-                                                                        K=FLAGS.lp_k),
+                                      scorer=nlp.model.BeamSearchScorer(alpha=FLAGS.lp_alpha, K=FLAGS.lp_k),
                                       max_length=FLAGS.tgt_max_len + 100)
     logging.info('Use beam_size={}, alpha={}, K={}'.format(FLAGS.beam_size, FLAGS.lp_alpha, FLAGS.lp_k))
 
+    # setup the loss function
     loss_function = MaskedSoftmaxCELoss()
     loss_function.hybridize(static_alloc=static_alloc)
 
-    train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx)
+    # run the training
+    train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx, tb_sw)
 
 
 def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
@@ -210,8 +238,8 @@ def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
     avg_loss_denom = 0
     avg_loss = 0.0
     for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length, inst_ids) in enumerate(data_loader):
-        # if batch_id == len(data_loader)-1:
-        #     break  # errors on last batch, jump out for now
+
+        # Put on ctxs
         src_seq = src_seq.as_in_context(ctx)
         tgt_seq = tgt_seq.as_in_context(ctx)
         src_valid_length = src_valid_length.as_in_context(ctx)
@@ -243,13 +271,13 @@ def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
     return avg_loss, real_translation_out
 
 
-def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx):
+def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx, tb_sw=None):
     """Training function.
     """
 
     trainer = gluon.Trainer(model.collect_params(), FLAGS.optimizer, {'learning_rate': FLAGS.lr})
 
-    train_data_loader, val_data_loader, test_data_loader = captioning.get_dataloaders(data_train, data_val, data_test)
+    train_data_loader, val_data_loader, test_data_loader = get_dataloaders(data_train, data_val, data_test)
 
     best_valid_bleu = 0.0
     for epoch_id in range(FLAGS.epochs):
@@ -259,24 +287,37 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
         for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length) in enumerate(train_data_loader):
             if batch_id == len(train_data_loader)-1:
                 break  # errors on last batch, jump out for now
-            # logging.info(src_seq.context) Context suddenly becomes GPU.
+
+            # put on the right ctx
             src_seq = src_seq.as_in_context(ctx)
             tgt_seq = tgt_seq.as_in_context(ctx)
             src_valid_length = src_valid_length.as_in_context(ctx)
             tgt_valid_length = tgt_valid_length.as_in_context(ctx)
 
+            # calc the outs, the loss and back pass
             with mx.autograd.record():
                 out, _ = model(src_seq, tgt_seq[:, :-1], src_valid_length, tgt_valid_length - 1)
                 loss = loss_function(out, tgt_seq[:, 1:], tgt_valid_length - 1).mean()
                 loss = loss * (tgt_seq.shape[1] - 1) / (tgt_valid_length - 1).mean()
                 loss.backward()
 
+            # step the trainer and add up some losses
             trainer.step(1)
             src_wc = src_valid_length.sum().asscalar()
             tgt_wc = (tgt_valid_length - 1).sum().asscalar()
             step_loss = loss.asscalar()
             log_avg_loss += step_loss
             log_wc += src_wc + tgt_wc
+
+            # log this batches statistics
+            if tb_sw:
+                tb_sw.add_scalar(tag='Training_loss',
+                                 scalar_value=step_loss,
+                                 global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+                tb_sw.add_scalar(tag='Training_ppl',
+                                 scalar_value=np.exp(step_loss),
+                                 global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
             if (batch_id + 1) % FLAGS.log_interval == 0:
                 wps = log_wc / (time.time() - log_start_time)
                 logging.info('[Epoch {} Batch {}/{}] loss={:.4f}, ppl={:.4f}  throughput={:.2f}K wps, wc={:.2f}K'
@@ -288,6 +329,14 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                 log_avg_loss = 0
                 log_wc = 0
 
+                if tb_sw:
+                    embs = mx.nd.array(list(range(len(data_train.vocab)))).as_in_context(ctx)
+                    embs = model.tgt_embed(embs)
+                    labs = data_train.vocab.idx_to_token
+                    tb_sw.add_embedding(mat=embs.asnumpy(), metadata=labs,
+                                        global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
+        # calculate validation and loss stats at end of epoch
         valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
         valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
         logging.info('[Epoch {}] valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(epoch_id,
@@ -295,6 +344,22 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                                                                                                 np.exp(valid_loss),
                                                                                                 valid_bleu_score * 100))
 
+        # log the validation and loss stats
+        if tb_sw:
+            tb_sw.add_scalar(tag='Validation_loss',
+                             scalar_value=valid_loss,
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_scalar(tag='Validation_ppl',
+                             scalar_value=np.exp(valid_loss),
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_scalar(tag='Validation_bleu',
+                             scalar_value=valid_bleu_score * 100,
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_text(tag='Validation Caps',
+                           text_string=get_comp_str(val_tgt_sentences, valid_translation_out),
+                           global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
+        # also calculate the test stats
         test_loss, test_translation_out = evaluate(test_data_loader, model, loss_function, translator, data_train, ctx)
         test_bleu_score, _, _, _, _ = compute_bleu([test_tgt_sentences], test_translation_out)
         logging.info('[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'.format(epoch_id,
@@ -302,10 +367,28 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                                                                                              np.exp(test_loss),
                                                                                              test_bleu_score * 100))
 
-        captioning.write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
-                                                                       'epoch{:d}_valid_out.txt').format(epoch_id))
-        captioning.write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
-                                                                      'epoch{:d}_test_out.txt').format(epoch_id))
+        # and log the test stats
+        if tb_sw:
+            tb_sw.add_scalar(tag='Test_loss',
+                             scalar_value=test_loss,
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_scalar(tag='Test_ppl',
+                             scalar_value=np.exp(test_loss),
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_scalar(tag='Test_bleu',
+                             scalar_value=test_bleu_score * 100,
+                             global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+            tb_sw.add_text(tag='Test Caps',
+                           text_string=get_comp_str(test_tgt_sentences, test_translation_out),
+                           global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
+        # write out the validation and test sentences to files
+        write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
+                                                            'epoch{:d}_valid_out.txt').format(epoch_id))
+        write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
+                                                           'epoch{:d}_test_out.txt').format(epoch_id))
+
+        # save the model params if best
         if valid_bleu_score > best_valid_bleu:
             best_valid_bleu = valid_bleu_score
             save_path = os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')
@@ -317,6 +400,7 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
             logging.info('Learning rate change to {}'.format(new_lr))
             trainer.set_learning_rate(new_lr)
 
+    # load and evaluate the best model
     if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')):
         model.load_parameters(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params'))
 
@@ -332,19 +416,8 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                                                                                           np.exp(test_loss),
                                                                                           test_bleu_score * 100))
 
-    captioning.write_sentences(valid_translation_out,
-                               os.path.join('models', 'captioning', FLAGS.model_id, 'best_valid_out.txt'))
-    captioning.write_sentences(test_translation_out,
-                               os.path.join('models', 'captioning', FLAGS.model_id, 'best_test_out.txt'))
-
-
-def write_sentences(sentences, file_path):
-    with io.open(file_path, 'w', encoding='utf-8') as of:
-        for sent in sentences:
-            if isinstance(sent, (list, tuple)):
-                of.write(u' '.join(sent) + u'\n')
-            else:
-                of.write(sent + u'\n')
+    write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_valid_out.txt'))
+    write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_test_out.txt'))
 
 
 if __name__ == '__main__':

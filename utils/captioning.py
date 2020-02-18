@@ -24,6 +24,7 @@ from mxnet import gluon
 import gluonnlp as nlp
 import gluonnlp.data.batchify as btf
 
+
 def get_dataloaders(data_train, data_val, data_test, use_average_length=False, num_shards=0, num_workers=8):
     """Create data loaders for training/validation/test."""
     data_train_lengths = data_train.get_data_lens()  # get_data_lengths(data_train)
@@ -92,3 +93,23 @@ def write_sentences(sentences, file_path):
                 of.write(u' '.join(sent) + u'\n')
             else:
                 of.write(sent + u'\n')
+
+
+def get_comp_str(tgts, prds):
+    str_ = ''
+    for tgt, prd in zip(tgts, prds):
+        str_ += 'GT:\t'
+        if isinstance(tgt, (list, tuple)):
+            str_ += ' '.join(tgt) + '\n'
+        else:
+            str_ += tgt + '\n'
+
+        str_ += '\nPD:\t'
+        if isinstance(prd, (list, tuple)):
+            str_ += ' '.join(prd) + '\n'
+        else:
+            str_ += prd + '\n'
+
+        str_ += '\n\n'
+
+    return str_
