@@ -49,7 +49,9 @@ flags.DEFINE_string('model_id', '0000',
 flags.DEFINE_integer('epochs', 40,
                      'How many training epochs to complete')
 flags.DEFINE_integer('num_hidden', 128,
-                     'Dimension of the embedding vectors and states')
+                     'Dimension of the states')
+flags.DEFINE_integer('emb_size', 128,
+                     'Dimension of the embedding vectors')
 flags.DEFINE_float('dropout', 0.2,
                    'dropout applied to layers (0 = no dropout)')
 flags.DEFINE_integer('num_layers', 2,
@@ -209,7 +211,7 @@ def main(_argv):
                                                 num_layers=FLAGS.num_layers,
                                                 num_bi_layers=FLAGS.num_bi_layers)
     model = NMTModel(src_vocab=None, tgt_vocab=data_train.vocab, encoder=encoder, decoder=decoder,
-                     embed_size=FLAGS.num_hidden, prefix='gnmt_', src_embed=encoder_model)
+                     embed_size=FLAGS.emb_size, prefix='gnmt_', src_embed=encoder_model)
 
     model.initialize(init=mx.init.Uniform(0.1), ctx=ctx)
     static_alloc = True
