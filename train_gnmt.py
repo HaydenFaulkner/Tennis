@@ -46,7 +46,7 @@ mx.random.seed(10000)
 
 flags.DEFINE_string('model_id', '0000',
                     'model identification string')
-flags.DEFINE_integer('epochs', 10,
+flags.DEFINE_integer('epochs', 40,
                      'How many training epochs to complete')
 flags.DEFINE_integer('num_hidden', 128,
                      'Dimension of the embedding vectors and states')
@@ -216,6 +216,17 @@ def main(_argv):
     model.hybridize(static_alloc=static_alloc)
     logging.info(model)
 
+    start_epoch = 0
+    if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id)):
+        files = os.listdir(os.path.join('models', 'captioning', FLAGS.model_id))
+        files = [f for f in files if f[-7:] == '.params']
+        if len(files) > 0:
+            files = sorted(files, reverse=True)  # put latest model first
+            model_name = files[0]
+            start_epoch = int(model_name.split('.')[0]) + 1
+            model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
+            logging.info('Loaded model params: {}'.format(os.path.join('models', 'captioning', FLAGS.model_id, model_name)))
+
     # setup the beam search
     translator = BeamSearchTranslator(model=model, beam_size=FLAGS.beam_size,
                                       scorer=nlp.model.BeamSearchScorer(alpha=FLAGS.lp_alpha, K=FLAGS.lp_k),
@@ -227,7 +238,8 @@ def main(_argv):
     loss_function.hybridize(static_alloc=static_alloc)
 
     # run the training
-    train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx, tb_sw)
+    train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences,
+          translator, start_epoch,ctx, tb_sw)
 
 
 def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
@@ -271,7 +283,8 @@ def evaluate(data_loader, model, loss_function, translator, data_train, ctx):
     return avg_loss, real_translation_out
 
 
-def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences, translator, ctx, tb_sw=None):
+def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentences, test_tgt_sentences,
+          translator, start_epoch, ctx, tb_sw=None):
     """Training function.
     """
 
@@ -280,7 +293,7 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
     train_data_loader, val_data_loader, test_data_loader = get_dataloaders(data_train, data_val, data_test)
 
     best_valid_bleu = 0.0
-    for epoch_id in range(FLAGS.epochs):
+    for epoch_id in range(start_epoch, FLAGS.epochs):
         log_avg_loss = 0
         log_wc = 0
         log_start_time = time.time()
@@ -400,6 +413,8 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
             new_lr = trainer.learning_rate * FLAGS.lr_update_factor
             logging.info('Learning rate change to {}'.format(new_lr))
             trainer.set_learning_rate(new_lr)
+
+        model.save_parameters(os.path.join('models', 'captioning', FLAGS.model_id, "{:04d}.params".format(epoch_id)))
 
     # load and evaluate the best model
     if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')):
