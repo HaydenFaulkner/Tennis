@@ -205,6 +205,8 @@ def main(_argv):
     write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'val_gt.txt'))
     write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'test_gt.txt'))
 
+    word_embs = nlp.embedding.TokenEmbedding.from_file(file_path=os.path.join('data', 'embeddings-ex.txt'))
+
     # setup the model
     encoder, decoder = get_gnmt_encoder_decoder(cell_type=FLAGS.cell_type,
                                                 hidden_size=FLAGS.num_hidden,

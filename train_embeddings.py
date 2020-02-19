@@ -23,8 +23,9 @@ from utils.embeddings.model import SG as SkipGramNet
 ADD_EXTRA = True
 BATCH_SIZE = 32
 EMB_SIZE = 100
+OVERWRITE = False
 
-context = mx.cpu()  # Enable this to run on CPU
+# context = mx.cpu()  # Enable this to run on CPU
 context = mx.gpu(0)  # Enable this to run on GPU
 
 with open(os.path.join('data', 'annotations', 'captions.txt')) as f:
@@ -128,7 +129,20 @@ def train_embedding(num_epochs):
         print("")
 
 
-train_embedding(num_epochs=3)
+train_embedding(num_epochs=2)
+
+# now lets save the embeddings to a file
+vocab_vecs = norm_vecs_by_row(embedding[vocab.idx_to_token]).asnumpy()
+
+if ADD_EXTRA:
+    save_path = os.path.join('data', 'embeddings-ex.txt')
+else:
+    save_path = os.path.join('data', 'embeddings.txt')
+
+if OVERWRITE or not os.path.exists(save_path):
+    with open(save_path, 'w') as f:
+        for i, word in enumerate(vocab.idx_to_token):
+            f.write('%s %s\n' % (word, ' '.join([str(x) for x in list(vocab_vecs[i, :])])))
 
 
 def visualise():
@@ -144,10 +158,11 @@ def visualise():
         ax.annotate(txt, (tsne_results[i, 0], tsne_results[i, 1]))
     plt.show()
 
-    with open('embs.txt', 'w') as f:
+    with open('embs-for-vis.txt', 'w') as f:
         f.write('"word","x","y"\n')
         for i, txt in enumerate(vocab.idx_to_token):
             f.write('"%s",%f,%f\n' % (txt, tsne_results[i, 0], tsne_results[i, 1]))
     print()
+
 
 visualise()
