@@ -14,6 +14,8 @@ import os
 import mxnet as mx
 import gluonnlp as nlp
 from mxnet.gluon.data import SimpleDataset
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 from utils.embeddings.data import transform_data_fasttext
 from utils.embeddings.model import SG as SkipGramNet
@@ -126,4 +128,26 @@ def train_embedding(num_epochs):
         print("")
 
 
-train_embedding(num_epochs=2)
+train_embedding(num_epochs=3)
+
+
+def visualise():
+    vocab_vecs = norm_vecs_by_row(embedding[vocab.idx_to_token]).asnumpy()
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+    tsne_results = tsne.fit_transform(vocab_vecs)
+
+    fig, ax = plt.subplots(figsize=(3, 2))
+    ax.scatter(
+        x=tsne_results[:, 0], y=tsne_results[:, 1]
+    )
+    for i, txt in enumerate(vocab.idx_to_token):
+        ax.annotate(txt, (tsne_results[i, 0], tsne_results[i, 1]))
+    plt.show()
+
+    with open('embs.txt', 'w') as f:
+        f.write('"word","x","y"\n')
+        for i, txt in enumerate(vocab.idx_to_token):
+            f.write('"%s",%f,%f\n' % (txt, tsne_results[i, 0], tsne_results[i, 1]))
+    print()
+
+visualise()
