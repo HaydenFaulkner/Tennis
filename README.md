@@ -48,3 +48,7 @@ Features will be saved in `\data\features\$model_id$\` with the same structure a
 
 ### Visualisations
 ...
+
+### Captioning
+Requires the [nlg-eval](https://github.com/Maluuba/nlg-eval) package. Install this first as per instructions on their 
+[Github](https://github.com/Maluuba/nlg-eval).
