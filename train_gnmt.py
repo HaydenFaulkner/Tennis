@@ -39,6 +39,7 @@ from models.vision.definitions import FrameModel
 from utils.layers import TimeDistributed
 from gluoncv.model_zoo import get_model
 from mxnet.gluon.data.vision import transforms
+from nlgeval import NLGEval
 
 np.random.seed(100)
 random.seed(100)
@@ -300,8 +301,8 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
         log_wc = 0
         log_start_time = time.time()
         for batch_id, (src_seq, tgt_seq, src_valid_length, tgt_valid_length) in enumerate(train_data_loader):
-            if batch_id == len(train_data_loader)-1:
-                break  # errors on last batch, jump out for now
+            # if batch_id == len(train_data_loader)-1:
+            #     break  # errors on last batch, jump out for now
 
             # put on the right ctx
             src_seq = src_seq.as_in_context(ctx)
@@ -355,10 +356,17 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
         # calculate validation and loss stats at end of epoch
         valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
         valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
-        logging.info('[Epoch {}] valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(epoch_id,
-                                                                                                valid_loss,
-                                                                                                np.exp(valid_loss),
-                                                                                                valid_bleu_score * 100))
+        # valid_met_score = meteor_score([[' '.join(sent)] for sent in val_tgt_sentences], [' '.join(sent) for sent in valid_translation_out])
+        str_ = '[Epoch {}] valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(
+            epoch_id, valid_loss, np.exp(valid_loss), valid_bleu_score * 100)
+
+        nlgeval = NLGEval()
+        metrics_dict = nlgeval.compute_metrics([[' '.join(sent) for sent in val_tgt_sentences]],
+                                               [' '.join(sent) for sent in valid_translation_out])
+
+        for k, v in metrics_dict.items():
+            str_ += ', valid '+k+'={:.4f}'.format(float(v))
+        logging.info(str_)
 
         # log the validation and loss stats
         if tb_sw:
@@ -375,13 +383,26 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
                            text_string=get_comp_str(val_tgt_sentences, valid_translation_out),
                            global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
 
+            for k, v in metrics_dict.items():
+                tb_sw.add_scalar(tag='Validation_'+k,
+                                 scalar_value=float(v),
+                                 global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
+
         # also calculate the test stats
         test_loss, test_translation_out = evaluate(test_data_loader, model, loss_function, translator, data_train, ctx)
         test_bleu_score, _, _, _, _ = compute_bleu([test_tgt_sentences], test_translation_out)
-        logging.info('[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'.format(epoch_id,
-                                                                                             test_loss,
-                                                                                             np.exp(test_loss),
-                                                                                             test_bleu_score * 100))
+        # test_met_score = meteor_score([test_tgt_sentences], test_translation_out)
+        str_ = '[Epoch {}] test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'.format(
+            epoch_id, test_loss, np.exp(test_loss), test_bleu_score * 100)
+
+        nlgeval = NLGEval()
+        metrics_dict = nlgeval.compute_metrics([[' '.join(sent) for sent in test_tgt_sentences]],
+                                               [' '.join(sent) for sent in test_translation_out])
+
+        for k, v in metrics_dict.items():
+            str_ += ', test '+k+'={:.4f}'.format(float(v))
+        logging.info(str_)
 
         # and log the test stats
         if tb_sw:
@@ -397,6 +418,11 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
             tb_sw.add_text(tag='Test Caps',
                            text_string=get_comp_str(test_tgt_sentences, test_translation_out),
                            global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
+
+            for k, v in metrics_dict.items():
+                tb_sw.add_scalar(tag='Test_'+k,
+                                 scalar_value=float(v),
+                                 global_step=(epoch_id * len(data_train) + batch_id * FLAGS.batch_size))
 
         # write out the validation and test sentences to files
         write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id,
