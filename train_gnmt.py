@@ -466,15 +466,31 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
 
     valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
     valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
-    logging.info('Best model valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(valid_loss,
-                                                                                            np.exp(valid_loss),
-                                                                                            valid_bleu_score * 100))
+
+    str_ = 'Best model valid Loss={:.4f}, valid ppl={:.4f}, valid bleu={:.2f}'.format(
+        epoch_id, valid_loss, np.exp(valid_loss), valid_bleu_score * 100)
+
+    nlgeval = NLGEval()
+    metrics_dict = nlgeval.compute_metrics([[' '.join(sent) for sent in val_tgt_sentences]],
+                                           [' '.join(sent) for sent in valid_translation_out])
+
+    for k, v in metrics_dict.items():
+        str_ += ', valid ' + k + '={:.4f}'.format(float(v))
+    logging.info(str_)
 
     test_loss, test_translation_out = evaluate(test_data_loader, model, loss_function, translator, data_train, ctx)
     test_bleu_score, _, _, _, _ = compute_bleu([test_tgt_sentences], test_translation_out)
-    logging.info('Best model test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}' .format(test_loss,
-                                                                                          np.exp(test_loss),
-                                                                                          test_bleu_score * 100))
+
+    str_ = 'Best model test Loss={:.4f}, test ppl={:.4f}, test bleu={:.2f}'.format(
+        epoch_id, test_loss, np.exp(test_loss), test_bleu_score * 100)
+
+    nlgeval = NLGEval()
+    metrics_dict = nlgeval.compute_metrics([[' '.join(sent) for sent in test_tgt_sentences]],
+                                           [' '.join(sent) for sent in test_translation_out])
+
+    for k, v in metrics_dict.items():
+        str_ += ', test ' + k + '={:.4f}'.format(float(v))
+    logging.info(str_)
 
     write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_valid_out.txt'))
     write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_test_out.txt'))
