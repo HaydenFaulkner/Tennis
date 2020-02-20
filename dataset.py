@@ -54,25 +54,22 @@ class TennisSet:
 
             caps = [p[4] for p in self._points.values()]
             words = ' '.join(caps).split()
-            counter = gluonnlp.data.count_tokens(words)
-            self.vocab = gluonnlp.Vocab(counter)
-            # fasttext = gluonnlp.embedding.create('fasttext', source='wiki.simple.vec')
-            # self.tgt_vocab.set_embedding(fasttext)
-
-            if vocab is None:  # training
-                # assert split == 'train'
-                vocab = self.vocab
+            if vocab is None:
+                counter = gluonnlp.data.count_tokens(words)
+                self.vocab = gluonnlp.Vocab(counter)
+            else:
+                self.vocab = vocab
 
             for i in range(len(self)):
                 point_id = self._samples[i]
                 cap = self._points[point_id][4]
                 # For max_cap_len < 0, we do not clip the sequence
                 if max_cap_len >= 0:
-                    cap_ids = vocab[cap.split()[:max_cap_len]]
+                    cap_ids = self.vocab[cap.split()[:max_cap_len]]
                 else:
-                    cap_ids = vocab[cap.split()]
-                cap_ids.insert(0, vocab[vocab.bos_token])
-                cap_ids.append(vocab[vocab.eos_token])
+                    cap_ids = self.vocab[cap.split()]
+                cap_ids.insert(0, self.vocab[self.vocab.bos_token])
+                cap_ids.append(self.vocab[self.vocab.eos_token])
                 cap_ids = np.array(cap_ids, dtype=np.int32)
                 self._points[point_id].append(cap_ids)
 
