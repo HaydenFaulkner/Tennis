@@ -243,7 +243,7 @@ def main(_argv):
             if model_name == 'valid_best.params':
                 model_name = files[1]
             start_epoch = int(model_name.split('.')[0]) + 1
-            model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
+            model.load_parameters(os.path.join('models', 'captioning', FLAGS.model_id, model_name), ctx=ctx)
             logging.info('Loaded model params: {}'.format(os.path.join('models', 'captioning', FLAGS.model_id, model_name)))
 
     # setup the beam search
