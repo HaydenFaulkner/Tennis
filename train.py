@@ -89,6 +89,9 @@ flags.DEFINE_string('flow', '',
 flags.DEFINE_string('temp_pool', None,
                     'mean, max or gru.')
 
+flags.DEFINE_integer('max_batches', -1,  # for 0031
+                     'Only do this many batches then break')
+
 
 def main(_argv):
     FLAGS.every = [int(s) for s in FLAGS.every]
@@ -399,6 +402,8 @@ def train_model(model, train_set, train_data, metrics, val_set, val_data, val_me
                 metric.reset()
 
             for i, batch in enumerate(train_data):  # loop over batches
+                if FLAGS.max_batches > 0 and i > FLAGS.max_batches:
+                    break
                 btic = time.time()
 
                 # split data across devices
