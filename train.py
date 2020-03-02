@@ -196,7 +196,7 @@ def main(_argv):
     model = None
     if FLAGS.feats_model is None:
         if FLAGS.backbone == 'rdnet':
-            backbone_net = get_r21d(num_layers=34, n_classes=400, t=32, pretrained=True).features
+            backbone_net = get_r21d(num_layers=34, n_classes=400, t=8, pretrained=True).features
         else:
             if FLAGS.flow == 'sixc':
                 backbone_net = get_model(FLAGS.backbone, pretrained=False).features  # 6 channel input, don't want pretraind
