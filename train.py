@@ -238,7 +238,7 @@ def main(_argv):
             pass
         else:
             assert FLAGS.backbone == 'rdnet'  # ensure 3d net
-            assert FLAGS.window == 32
+            assert FLAGS.window in [8, 32]
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
