@@ -33,8 +33,7 @@ dense temporal events.
 <h3 align='center'>Data Downloading and Pre-processing</h3>
 <p align="center">See <a href="data">data</a> for download and organisation information.</p>
 
-<p align="center">Once you have JSON annotation files with the annotator, you can run:</p>
-<code>python utils/annotations/preprocess.py</code>
+<p align="center">Once you have JSON annotation files with the annotator, you can run: <code>python utils/annotations/preprocess.py</code></p>
 
 <p align="center">This does pre-processing on the annotations, specifically:</p>
 <p align="center">1. Generates slice .txt files for each .json annotation file</p>
