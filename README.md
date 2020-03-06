@@ -27,15 +27,10 @@ captions.
 
 
 Individual shots (`serve` and `hit`) are used to generate **11** temporal event categories:
-![class hierarchy](img/tennis_cls_hier.jpg)
+![class hierarchy](img/tennis_cls_hier.svg)
 
 More about the sample numbers for these individual classes can be seen below in the split information.
 
-<object data="http://hf.id.au/papers/CVnn.pdf" type="application/pdf" width="700px" height="700px">
-    <embed src="http://hf.id.au/papers/CVnn.pdf">
-        <p>This browser does not support PDFs. Please download the PDF to view it: <a href="http://hf.id.au/papers/CVnn.pdf">Download PDF</a>.</p>
-    </embed>
-</object>
 
 
 ### The Annotator
