@@ -26,31 +26,34 @@ captions.</p>
 
 <h3 align='center'>The Annotator</h3>
 <p align="center">The <a href="https://github.com/HaydenFaulkner/TemporalEventAnnotator">annotator</a> was used to annotate the videos with
-dense temporal events. See the README in the
-<a href="/TemporalEventAnnotator/">TemporalEventAnnotator</a> directory for more information.</p>
+dense temporal events. 
 
-### Data Downloading and Pre-processing
-See [data](/data/) for download and organisation information.
+<h3 align='center'>Data Downloading and Pre-processing</h3>
+<p align="center">See <a href="data">data</a> for download and organisation information.</p>
 
-Once you have `.json` annotation files with the annotator, you can run:
+<p align="center">Once you have JSON annotation files with the annotator, you can run:</p>
 ```
 python utils/annotations/preprocess.py
 ```
 
-This does pre-processing on the annotations, specifically:
-1. Generates slice `.txt` files for each `.json` annotation file
-2. Generalises the `.json` annotation files from player names and
-forehand/backhand to near/far and left/right
-3. Generates label `.txt` files for each generalised `.json` annotation
- file
+<p align="center">This does pre-processing on the annotations, specifically:</p>
+<p align="center">1. Generates slice `.txt` files for each `.json` annotation file</p>
+<p align="center">2. Generalises the `.json` annotation files from player names and forehand/backhand to near/far and left/right</p>
+<p align="center">3. Generates label `.txt` files for each generalised `.json` annotation file</p>
 
-Alternatively you can download our annotations `.tar.gz`
+<p align="center">Alternatively you can download our annotations `.tar.gz`
 ([see data](/data/))
 
-### The Splits
+<h3 align='center'>The Splits</h3>
+<p align="center">Due to the limited size of the dataset, there are two varieties of train, validation and testing splits. The first (01) uses the the entire V010 as the validation and test while the second (02) splits across all videos evenly.</p>
+<p align="center"><img src="img/tennis_split_vis.svg"></p>
 
-## The Models
-Coming Soon - More information on the models can be found in the README in the models directory.
+<p align="center">The resulting statistics per event class are as follows:</p>
+<p align="center"><img src="img/splits_table.svg"></p>
+
+<h2 align='center'></h2>
+<h2 align='center'>The Models</h2>
+<p align="center">Coming Soon - More information on the models can be found in the README in the models directory.</p>
 
 ### Feature extraction
 After you have trained a model you can save the backbone output as `.npy` features by using `--save_feats`
