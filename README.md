@@ -51,7 +51,7 @@ dense temporal events.
 <p align="center">There is one commentary style caption for each of the 746 points, as well as another 10817 captions not aligned to any imagery. Some examples are:</p>
 <p align="center"><img src="img/tennis_cap_examps.svg"></p>
 
-<p align="center">Both groups of captions are utilised to generate a word embedding for the 250 unique words in the vocabulary. The embedding is generated with <a href="train_embeddings.py"><code>train_embeddings.py</code></a> utilising a <a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">SkipGram model</a>. Below the 100 dimensional word embedding is visualised post t-SNE.</p>
+<p align="center">Both groups of captions are utilised to generate a word embedding for the 250 unique words in the vocabulary. The embedding is generated with <a href="train_embeddings.py"><code>train_embeddings.py</code></a> utilising a <a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">SkipGram model</a>. Below the 100 dimensional word embedding is visualised post t-SNE. The full embeddings can be found in <a href="data/embeddings-ex.txt"><code>data/embeddings-ex.txt</code></a>.</p>
 <p align="center"><img src="img/tennis_embeddings.svg"></p>
 
 
