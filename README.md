@@ -10,7 +10,7 @@ with <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
 
 
 <h2 align='center'></h2>
-<h2 align='center'>Dataset</h2>
+<h2 align='center'>The Dataset</h2>
 
 <p align="center">The tennis dataset consists of 5 matches and has manually annotated temporal events and commentary 
 captions.</p>
@@ -34,7 +34,7 @@ dense temporal events.
 <h3 align='center'>Data Downloading and Pre-processing</h3>
 <p align="center">See <a href="data">data</a> for download and organisation information.</p>
 
-<p align="center">Once you have JSON annotation files with the annotator, you can run: <code>python utils/annotations/preprocess.py</code></p>
+<p align="center">Once you have JSON annotation files with the annotator, you can run: <a href="utils/annotations/preprocess.py"><code>utils/annotations/preprocess.py</code></a></p>
 
 <p align="center">This does pre-processing on the annotations, specifically:</p>
 
