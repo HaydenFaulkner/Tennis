@@ -1,11 +1,11 @@
 <h1 align="center">Tennis</h1>
 <p align="center">
-A Tennis dataset and models for event detection & commentary generation. Discussed in <a href="http://hf.id.au/papers/DICTA17_Tennis.pdf">"TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"</a>
+A Tennis dataset and models for event detection & commentary generation. Discussed in:</p>
+<p align="center"><a href="http://hf.id.au/papers/DICTA17_Tennis.pdf">"TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"</a>
 </p>
 
-<p align="center"><b>IMPORTANT NOTE</b></p>
 
-<p align="center">The results in the paper were with outdated <a href="https://keras.io/">Keras</a> models, new results listed below are 
+<p align="center"><b>IMPORTANT NOTE: </b>The results in the paper were with outdated <a href="https://keras.io/">Keras</a> models, new results listed below are 
 with updated <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
 
 
@@ -13,20 +13,12 @@ with updated <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
 <h2 align='center'>Dataset</h2>
 
 <h3 align='center'>Overview</h2>
-<p align="center">The tennis dataset consists of five matches taken from YouTube and has manually annotated temporal events and commentary 
+<p align="center">The tennis dataset consists of 5 matches and has manually annotated temporal events and commentary 
 captions.</p>
-
-| Type | Attributes | # Events | # Frames | Frames per Event |
-| :---:        |     :---:      |        :---: |     :---:      |        :---: |
-| **`match`**   | `winner`     | 5    | 786455 | 157291 |
-| **`set`**   | `winner`, `score`  | 11    | 765738 | 69613 |
-| **`game`**   | `winner`, `score`, `server`     | 118    | 588759 | 4989 |
-| **`point`**   | `winner`, `score`     | 746    | 159494 | 214 |
-| **`serve`**   | `near/far`, `in/fault/let`    | 1017   | 68385 | 67 |
-| **`hit`**   | `near/far`, `left/right`  | 2551    | 73564 | 29 |
+<p align="center"><img src="img/annotation_stats.svg"></p>
 
 
-<p align="center">Individual shots (`serve` and `hit`) are used to generate **11** temporal event categories:</p>
+<p align="center">Individual shots (`serve` and `hit`) are used to generate 11 temporal event categories:</p>
 <p align="center"><img src="img/tennis_cls_hier.svg"></p>
 
 <p align="center">More about the sample numbers for these individual classes can be seen below in the split information.</p>
