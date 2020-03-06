@@ -55,27 +55,30 @@ dense temporal events.
 <p align="center">There is one commentary style caption for each of the 746 points, as well as another 10817 captions not aligned to any imagery. Some examples are:</p>
 <p align="center"><img src="img/tennis_cap_examps.svg"></p>
 
-<p align="center">Both groups of captions are utilised to generate a word embedding for the 250 unique words in the vocabulary. Below the 100 dimensional word embedding is visualised post t-SNE.</p>
+<p align="center">Both groups of captions are utilised to generate a word embedding for the 250 unique words in the vocabulary. The embedding is generated with <a href="train_embeddings.py"><code>train_embeddings.py</code></a> utilising a <a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">SkipGram model</a>. Below the 100 dimensional word embedding is visualised post t-SNE.</p>
 <p align="center"><img src="img/tennis_embeddings.svg"></p>
 
 
 <h2 align='center'></h2>
 <h2 align='center'>The Models</h2>
-<p align="center">Coming Soon - More information on the models can be found in the README in the models directory.</p>
+<p align="center">There are a number of different models architectures to chose from, more information and download links to pretrained models can be found in the README in the <a href="models">models</a> directory.</p>
 
-### Feature extraction
-After you have trained a model you can save the backbone output as `.npy` features by using `--save_feats`
-```
---model_id 0006 --backbone DenseNet121 --num_gpus 1 --num_workers 16 --save_feats
-```
-Features will be saved in `\data\features\$model_id$\` with the same structure as `\data\frames\`.
+<p align="center">.......</p>
+<h3 align='center'>Event Detection</h3>
+<p align="center">These models are trained with <a href="train.py"><code>train.py</code></a></p>
+<p align="center">TODO add table of models and their results</p>
 
-### Evalutations
-...
+<p align="center">TODO add test and visualisation script</p>
 
-### Visualisations
-...
+<p align="center">Features can be extracted using <code>--save_feats</code> argument on <a href="train.py"><code>train.py</code></a>, and will save them as .npy in <code>\data\features\$model_id$\</code> with the same structure as <code>\data\frames\</code>.</p>
 
-### Captioning
-Requires the [nlg-eval](https://github.com/Maluuba/nlg-eval) package. Install this first as per instructions on their 
-[Github](https://github.com/Maluuba/nlg-eval).
+<p align="center">.......</p>
+<h3 align='center'>Captioning</h3>
+<p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
+<p align="center">These models are trained with <a href="train_gnmt.py"><code>train_gnmt.py</code></a></p>
+<p align="center">TODO add table of models and their results</p>
+
+<p align="center">TODO add test and visualisation script</p>
+
+
+
