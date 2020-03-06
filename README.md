@@ -5,30 +5,29 @@ A Tennis dataset and models for event detection & commentary generation. Discuss
 </p>
 
 
-<p align="center"><b>IMPORTANT NOTE: </b>The results in the paper were with outdated <a href="https://keras.io/">Keras</a> models, new results listed below are 
-with updated <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
+<p align="center"><b>NOTE: </b>The results in the paper were with old <a href="https://keras.io/">Keras</a> models, new results are
+with <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
 
 
-
+<h2 align='center'></h2>
 <h2 align='center'>Dataset</h2>
 
-<h3 align='center'>Overview</h2>
 <p align="center">The tennis dataset consists of 5 matches and has manually annotated temporal events and commentary 
 captions.</p>
 <p align="center"><img src="img/annotation_stats.svg"></p>
 
 
-<p align="center">Individual shots (`serve` and `hit`) are used to generate 11 temporal event categories:</p>
+<p align="center">Individual shots (serve and hit) are used to generate 11 temporal event categories:</p>
 <p align="center"><img src="img/tennis_cls_hier.svg"></p>
 
 <p align="center">More about the sample numbers for these individual classes can be seen below in the split information.</p>
 
 
 
-### The Annotator
-The [annotator](https://github.com/HaydenFaulkner/TemporalEventAnnotator) was used to annotate the videos with
+<h3 align='center'>The Annotator</h3>
+<p align="center">The <a href="https://github.com/HaydenFaulkner/TemporalEventAnnotator">annotator</a> was used to annotate the videos with
 dense temporal events. See the README in the
-[TemporalEventAnnotator](/TemporalEventAnnotator/) directory for more information.
+<a href="/TemporalEventAnnotator/">TemporalEventAnnotator</a> directory for more information.</p>
 
 ### Data Downloading and Pre-processing
 See [data](/data/) for download and organisation information.
