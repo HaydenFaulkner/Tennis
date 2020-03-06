@@ -24,32 +24,40 @@ captions.</p>
 
 
 
-<h3 align='center'></h3>
+<p align="center">.......</p>
 <h3 align='center'>The Annotator</h3>
 <p align="center">The <a href="https://github.com/HaydenFaulkner/TemporalEventAnnotator">annotator</a> was used to annotate the videos with
 dense temporal events. 
 
-<h3 align='center'></h3>
+
+<p align="center">.......</p>
 <h3 align='center'>Data Downloading and Pre-processing</h3>
 <p align="center">See <a href="data">data</a> for download and organisation information.</p>
 
 <p align="center">Once you have JSON annotation files with the annotator, you can run: <code>python utils/annotations/preprocess.py</code></p>
 
 <p align="center">This does pre-processing on the annotations, specifically:</p>
-<p align="center">1. Generates slice .txt files for each .json annotation file</p>
-<p align="center">2. Generalises the .json annotation files from player names and forehand/backhand to near/far and left/right</p>
-<p align="center">3. Generates label .txt files for each generalised .json annotation file</p>
-<p></p>
 
 <p align="center">Alternatively you can download our annotations .tar.gz - <a href="data">see data</a></p>
 
-<h3 align='center'></h3>
+
+<p align="center">.......</p>
 <h3 align='center'>The Splits</h3>
 <p align="center">Due to the limited size of the dataset, there are two varieties of train, validation and testing splits. The first (01) uses the the entire V010 as the validation and test while the second (02) splits across all videos evenly.</p>
 <p align="center"><img src="img/tennis_split_vis.svg"></p>
 
 <p align="center">The resulting statistics per event class are as follows:</p>
 <p align="center"><img src="img/splits_table.svg"></p>
+
+
+<p align="center">.......</p>
+<h3 align='center'>The Captions</h3>
+<p align="center">There is one commentary style caption for each of the 746 points, as well as another 10817 captions not aligned to any imagery. Some examples are:</p>
+<p align="center"><img src="img/tennis_cap_examps.svg"></p>
+
+<p align="center">Both groups of captions are utilised to generate a word embedding for the 250 unique words in the vocabulary. Below the 100 dimensional word embedding is visualised post t-SNE.</p>
+<p align="center"><img src="img/tennis_embeddings.svg"></p>
+
 
 <h2 align='center'></h2>
 <h2 align='center'>The Models</h2>
