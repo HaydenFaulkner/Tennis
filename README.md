@@ -79,3 +79,16 @@ dense temporal events.
 
 
 
+<h2 align='center'></h2>
+<h2 align='center'>Sharing is Caring</h2>
+<p align="center">If you find any data or models useful please reference and cite</p>
+
+<p align="center"><code>
+@inproceedings{faulkner2017tenniset,
+  title={TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description},
+  author={Faulkner, Hayden and Dick, Anthony},
+  booktitle={2017 International Conference on Digital Image Computing: Techniques and Applications (DICTA)},
+  pages={1--8},
+  organization={IEEE}
+}
+</code></p>
