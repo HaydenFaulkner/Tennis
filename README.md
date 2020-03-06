@@ -27,7 +27,7 @@ captions.
 
 
 Individual shots (`serve` and `hit`) are used to generate **11** temporal event categories:
-![class hierarchy](img/tennis_cls_hier.svg)
+<img src="img/tennis_cls_hier.svg" align=center>
 
 More about the sample numbers for these individual classes can be seen below in the split information.
 
