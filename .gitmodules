@@ -1,0 +1,3 @@
+[submodule "TemporalEventAnnotator"]
+	path = TemporalEventAnnotator
+	url = https://github.com/HaydenFaulkner/TemporalEventAnnotator.git

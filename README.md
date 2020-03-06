@@ -1,21 +1,49 @@
-# Tennis (Work in progress)
-Code supporting the paper:
-["TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"](http://hf.id.au/papers/DICTA17_Tennis.pdf)
+<h1 align='center'>Tennis</h1>
+<p align=center>
+A Tennis dataset and models for event detection & commentary generation. Discussed in <a href="http://hf.id.au/papers/DICTA17_Tennis.pdf">"TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"</a>
 
-Code is being converted into [MXNet](https://mxnet.apache.org/) and
-[GluonCV](https://gluon-cv.mxnet.io/). With newly trained models
-available soon.
 
-***PLEASE NOTE:*** The results in the paper were with outdated Keras
-models, new results will be presented below in this readme.
+<b>IMPORTANT NOTE</b>
 
-## About
+The results in the paper were with outdated <a href="https://keras.io/">Keras</a> models, new results listed below are 
+with updated <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.
+</p>
+
+
+## The Dataset
+
+### Overview
+The tennis dataset consists of five matches taken from YouTube and has manually annotated temporal events and commentary 
+captions.
+
+| Type | Attributes | # Events | # Frames | Frames per Event |
+| :---:        |     :---:      |        :---: |     :---:      |        :---: |
+| **`match`**   | `winner`     | 5    | 786455 | 157291 |
+| **`set`**   | `winner`, `score`  | 11    | 765738 | 69613 |
+| **`game`**   | `winner`, `score`, `server`     | 118    | 588759 | 4989 |
+| **`point`**   | `winner`, `score`     | 746    | 159494 | 214 |
+| **`serve`**   | `near/far`, `in/fault/let`    | 1017   | 68385 | 67 |
+| **`hit`**   | `near/far`, `left/right`  | 2551    | 73564 | 29 |
+
+
+Individual shots (`serve` and `hit`) are used to generate **11** temporal event categories:
+![class hierarchy](img/tennis_cls_hier.jpg)
+
+More about the sample numbers for these individual classes can be seen below in the split information.
+
+<object data="http://hf.id.au/papers/CVnn.pdf" type="application/pdf" width="700px" height="700px">
+    <embed src="http://hf.id.au/papers/CVnn.pdf">
+        <p>This browser does not support PDFs. Please download the PDF to view it: <a href="http://hf.id.au/papers/CVnn.pdf">Download PDF</a>.</p>
+    </embed>
+</object>
+
+
 ### The Annotator
-The [annotator](/annotator/) can be used to annotate any video with
-dense temporal events using a GUI. See the README in the
-[annotator](/annotator/) directory for more information.
+The [annotator](https://github.com/HaydenFaulkner/TemporalEventAnnotator) was used to annotate the videos with
+dense temporal events. See the README in the
+[TemporalEventAnnotator](/TemporalEventAnnotator/) directory for more information.
 
-### Data Pre-processing
+### Data Downloading and Pre-processing
 See [data](/data/) for download and organisation information.
 
 Once you have `.json` annotation files with the annotator, you can run:
@@ -33,7 +61,9 @@ forehand/backhand to near/far and left/right
 Alternatively you can download our annotations `.tar.gz`
 ([see data](/data/))
 
-### The Models
+### The Splits
+
+## The Models
 Coming Soon - More information on the models can be found in the README in the models directory.
 
 ### Feature extraction
