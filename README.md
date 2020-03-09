@@ -61,21 +61,19 @@ dense temporal events.
 
 <p align="center">.......</p>
 <h3 align='center'>Event Detection</h3>
-<p align="center">These models are trained with <a href="train.py"><code>train.py</code></a></p>
-<p align="center">TODO add table of models and their results</p>
+<p align="center">These models are trained with <a href="train.py"><code>train.py</code></a> and evaluated with <a href="train.py"><code>evaluated.py</code></a></p>
 
-<p align="center">TODO add test and visualisation script</p>
+<p align="center">Features can be extracted using <code>--save_feats</code> argument, and will save them as .npy in <code>\data\features\$model_id$\</code> with the same structure as <code>\data\frames\</code>.</p>
 
-<p align="center">Features can be extracted using <code>--save_feats</code> argument on <a href="train.py"><code>train.py</code></a>, and will save them as .npy in <code>\data\features\$model_id$\</code> with the same structure as <code>\data\frames\</code>.</p>
+<p align="center">The table below shows the <a href="https://en.wikipedia.org/wiki/F1_score">F1 scores</a> per class on the test set for some of the different models</p>
+<p align="center", color="red">TODO: add table on R(2+1)D finish</p>
 
 <p align="center">.......</p>
 <h3 align='center'>Captioning</h3>
 <p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
-<p align="center">These models are trained with <a href="train_gnmt.py"><code>train_gnmt.py</code></a></p>
+<p align="center">These models are trained with <a href="train_gnmt.py"><code>train_gnmt.py</code></a> and evaluated with <a href="evaluate_gnmt.py"><code>evaluate_gnmt.py</code></a></p>
 <p align="center">The table below shows some example generated captions on the test split, the underline marks errors:</p>
 <p align="center"><img src="img/cap_gen_examples.svg"></p>
-
-<p align="center">TODO add test and visualisation script</p>
 
 
 
