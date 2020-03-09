@@ -142,14 +142,14 @@ def main(_argv):
     if FLAGS.window > 1:  # Time Distributed RNN
 
         if FLAGS.backbone_from_id and model is not None:
-            if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
-                files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
+            if os.path.exists(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id)):
+                files = os.listdir(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id))
                 files = [f for f in files if f[-7:] == '.params']
                 if len(files) > 0:
                     files = sorted(files, reverse=True)  # put latest model first
                     model_name = files[0]
-                    model.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name))
-                    print('Loaded backbone params: {}'.format(os.path.join('models',
+                    model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id, model_name))
+                    print('Loaded backbone params: {}'.format(os.path.join('models', 'vision', 'experiments',
                                                                                   FLAGS.backbone_from_id, model_name)))
 
         if FLAGS.freeze_backbone and model is not None:
@@ -189,7 +189,7 @@ def main(_argv):
     if FLAGS.save_feats:
         best_score = -1
         best_epoch = -1
-        with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
+        with open(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, 'scores.txt'), 'r') as f:
             lines = f.readlines()
             lines = [line.rstrip().split() for line in lines]
             for ep, sc in lines:
@@ -198,22 +198,22 @@ def main(_argv):
                     best_score = float(sc)
 
         print('Testing best model from Epoch %d with score of %f' % (best_epoch, best_score))
-        model.load_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
+        model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
         print('Loaded model params: {}'.format(
-            os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
+            os.path.join('models', 'vision', 'experiments', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
 
         for data, sett in zip([test_data], [test_set]):
             save_features(model, data, sett, ctx)
         return
 
-    if os.path.exists(os.path.join('models', FLAGS.model_id)):
-        files = os.listdir(os.path.join('models', FLAGS.model_id))
+    if os.path.exists(os.path.join('models', 'vision', 'experiments', FLAGS.model_id)):
+        files = os.listdir(os.path.join('models', 'vision', 'experiments', FLAGS.model_id))
         files = [f for f in files if f[-7:] == '.params']
         if len(files) > 0:
             files = sorted(files, reverse=True)  # put latest model first
             model_name = files[0]
-            model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
-            print('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
+            model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, model_name), ctx=ctx)
+            print('Loaded model params: {}'.format(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, model_name)))
 
     # Setup Metrics
     test_metrics = [Accuracy(label_names=test_set.classes),
@@ -225,9 +225,9 @@ def main(_argv):
 
     # model training complete, test it
     if FLAGS.temp_pool not in ['max', 'mean']:
-        mod_path = os.path.join('models', FLAGS.model_id)
+        mod_path = os.path.join('models', 'vision', 'experiments', FLAGS.model_id)
     else:
-        mod_path = os.path.join('models', FLAGS.feats_model)
+        mod_path = os.path.join('models', 'vision', 'experiments', FLAGS.feats_model)
     best_score = -1
     best_epoch = -1
     with open(os.path.join(mod_path, 'scores.txt'), 'r') as f:
@@ -247,8 +247,8 @@ def main(_argv):
         model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0, feats=FLAGS.feats_model!=None)
 
     tic = time.time()
-    results_path = os.path.join(mod_path, 'results.pkl')
-    gts_path = os.path.join(mod_path, 'gts.pkl')
+    results_path = os.path.join(os.path.join('models', 'vision', 'experiments', 'results.pkl'))
+    gts_path = os.path.join(os.path.join('models', 'vision', 'experiments', 'gts.pkl'))
     if os.path.exists(gts_path) and FLAGS.results_cache:
         with open(gts_path, 'rb') as f:
             gts = pkl.load(f)
@@ -286,7 +286,7 @@ def main(_argv):
     print(str_)
 
     if FLAGS.vis:
-        visualise_events(test_set, results, video_path=os.path.join(mod_path, 'results.mp4'), gt=gts)
+        visualise_events(test_set, results, video_path=os.path.join('models', 'vision', 'experiments', 'results.mp4'), gt=gts)
 
 
 # Testing/Validation function

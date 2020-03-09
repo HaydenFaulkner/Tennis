@@ -121,7 +121,7 @@ flags.DEFINE_string('emb_file', 'embeddings-ex.txt',
 
 def main(_argv):
 
-    os.makedirs(os.path.join('models', 'captioning', FLAGS.model_id), exist_ok=True)
+    os.makedirs(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id), exist_ok=True)
 
     if FLAGS.num_gpus > 0:  # only supports 1 GPU
         ctx = mx.gpu()
@@ -132,7 +132,7 @@ def main(_argv):
     logging.basicConfig()
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    log_file_path = os.path.join('models', 'captioning', FLAGS.model_id, 'log.txt')
+    log_file_path = os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'log.txt')
     log_dir = os.path.dirname(log_file_path)
     if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -150,16 +150,16 @@ def main(_argv):
         backbone_net = get_model(FLAGS.backbone, pretrained=True, ctx=ctx).features
         cnn_model = FrameModel(backbone_net, 11)  # hardcoded the number of classes
         if FLAGS.backbone_from_id:
-            if os.path.exists(os.path.join('models', 'vision', FLAGS.backbone_from_id)):
-                files = os.listdir(os.path.join('models', 'vision', FLAGS.backbone_from_id))
+            if os.path.exists(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id)):
+                files = os.listdir(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id))
                 files = [f for f in files if f[-7:] == '.params']
                 if len(files) > 0:
                     files = sorted(files, reverse=True)  # put latest model first
                     model_name = files[0]
-                    cnn_model.load_parameters(os.path.join('models', 'vision', FLAGS.backbone_from_id, model_name), ctx=ctx)
-                    logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', FLAGS.backbone_from_id, model_name)))
+                    cnn_model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id, model_name), ctx=ctx)
+                    logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id, model_name)))
             else:
-                raise FileNotFoundError('{}'.format(os.path.join('models', 'vision', FLAGS.backbone_from_id)))
+                raise FileNotFoundError('{}'.format(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id)))
 
         if FLAGS.freeze_backbone:
             for param in cnn_model.collect_params().values():
@@ -204,8 +204,8 @@ def main(_argv):
 
     val_tgt_sentences = data_val.get_captions(split=True)
     test_tgt_sentences = data_test.get_captions(split=True)
-    write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'val_gt.txt'))
-    write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', FLAGS.model_id, 'test_gt.txt'))
+    write_sentences(val_tgt_sentences, os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'val_gt.txt'))
+    write_sentences(test_tgt_sentences, os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'test_gt.txt'))
 
     # load embeddings for tgt_embed
     if FLAGS.emb_file:
@@ -234,8 +234,8 @@ def main(_argv):
     logging.info(model)
 
     start_epoch = 0
-    if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id)):
-        files = os.listdir(os.path.join('models', 'captioning', FLAGS.model_id))
+    if os.path.exists(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id)):
+        files = os.listdir(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id))
         files = [f for f in files if f[-7:] == '.params']
         if len(files) > 0:
             files = sorted(files, reverse=True)  # put latest model first
@@ -243,8 +243,8 @@ def main(_argv):
             if model_name == 'valid_best.params':
                 model_name = files[1]
             start_epoch = int(model_name.split('.')[0]) + 1
-            model.load_parameters(os.path.join('models', 'captioning', FLAGS.model_id, model_name), ctx=ctx)
-            logging.info('Loaded model params: {}'.format(os.path.join('models', 'captioning', FLAGS.model_id, model_name)))
+            model.load_parameters(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, model_name), ctx=ctx)
+            logging.info('Loaded model params: {}'.format(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, model_name)))
 
     # setup the beam search
     translator = BeamSearchTranslator(model=model, beam_size=FLAGS.beam_size,
@@ -449,7 +449,7 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
         # save the model params if best
         if valid_bleu_score > best_valid_bleu:
             best_valid_bleu = valid_bleu_score
-            save_path = os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')
+            save_path = os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'valid_best.params')
             logging.info('Save best parameters to {}'.format(save_path))
             model.save_parameters(save_path)
 
@@ -458,11 +458,11 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
             logging.info('Learning rate change to {}'.format(new_lr))
             trainer.set_learning_rate(new_lr)
 
-        model.save_parameters(os.path.join('models', 'captioning', FLAGS.model_id, "{:04d}.params".format(epoch_id)))
+        model.save_parameters(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, "{:04d}.params".format(epoch_id)))
 
     # load and evaluate the best model
-    if os.path.exists(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params')):
-        model.load_parameters(os.path.join('models', 'captioning', FLAGS.model_id, 'valid_best.params'))
+    if os.path.exists(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'valid_best.params')):
+        model.load_parameters(os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'valid_best.params'))
 
     valid_loss, valid_translation_out = evaluate(val_data_loader, model, loss_function, translator, data_train, ctx)
     valid_bleu_score, _, _, _, _ = compute_bleu([val_tgt_sentences], valid_translation_out)
@@ -492,8 +492,8 @@ def train(data_train, data_val, data_test, model, loss_function, val_tgt_sentenc
         str_ += ', test ' + k + '={:.4f}'.format(float(v))
     logging.info(str_)
 
-    write_sentences(valid_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_valid_out.txt'))
-    write_sentences(test_translation_out, os.path.join('models', 'captioning', FLAGS.model_id, 'best_test_out.txt'))
+    write_sentences(valid_translation_out, os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'best_valid_out.txt'))
+    write_sentences(test_translation_out, os.path.join('models', 'captioning', 'experiments', FLAGS.model_id, 'best_test_out.txt'))
 
 
 if __name__ == '__main__':

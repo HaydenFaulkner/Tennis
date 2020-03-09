@@ -94,6 +94,8 @@ def write_sentences(sentences, file_path):
             else:
                 of.write(sent + u'\n')
 
+def read_sentences(file_path):
+    return sentences
 
 def get_comp_str(tgts, prds):
     str_ = ''

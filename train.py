@@ -107,7 +107,7 @@ def main(_argv):
     logging.basicConfig()
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    log_file_path = os.path.join('models', FLAGS.model_id, 'log.txt')
+    log_file_path = os.path.join('models', 'vision', 'experiments', FLAGS.model_id, 'log.txt')
     log_dir = os.path.dirname(log_file_path)
     if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -218,14 +218,14 @@ def main(_argv):
     if FLAGS.window > 1:  # Time Distributed RNN
 
         if FLAGS.backbone_from_id and model is not None:
-            if os.path.exists(os.path.join('models', FLAGS.backbone_from_id)):
-                files = os.listdir(os.path.join('models', FLAGS.backbone_from_id))
+            if os.path.exists(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id)):
+                files = os.listdir(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id))
                 files = [f for f in files if f[-7:] == '.params']
                 if len(files) > 0:
                     files = sorted(files, reverse=True)  # put latest model first
                     model_name = files[0]
-                    model.load_parameters(os.path.join('models', FLAGS.backbone_from_id, model_name))
-                    logging.info('Loaded backbone params: {}'.format(os.path.join('models',
+                    model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.backbone_from_id, model_name))
+                    logging.info('Loaded backbone params: {}'.format(os.path.join('models', 'vision', 'experiments',
                                                                                   FLAGS.backbone_from_id, model_name)))
 
         if FLAGS.freeze_backbone and model is not None:
@@ -266,7 +266,7 @@ def main(_argv):
     if FLAGS.save_feats:
         best_score = -1
         best_epoch = -1
-        with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'r') as f:
+        with open(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, 'scores.txt'), 'r') as f:
             lines = f.readlines()
             lines = [line.rstrip().split() for line in lines]
             for ep, sc in lines:
@@ -275,24 +275,24 @@ def main(_argv):
                     best_score = float(sc)
 
         logging.info('Testing best model from Epoch %d with score of %f' % (best_epoch, best_score))
-        model.load_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
+        model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, "{:04d}.params".format(best_epoch)))
         logging.info('Loaded model params: {}'.format(
-            os.path.join('models', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
+            os.path.join('models', 'vision', 'experiments', FLAGS.model_id, "{:04d}.params".format(best_epoch))))
 
         for data, sett in zip([train_data, val_data, test_data], [train_set, val_set, test_set]):
             save_features(model, data, sett, ctx)
         return
 
     start_epoch = 0
-    if os.path.exists(os.path.join('models', FLAGS.model_id)):
-        files = os.listdir(os.path.join('models', FLAGS.model_id))
+    if os.path.exists(os.path.join('models', 'vision', 'experiments', FLAGS.model_id)):
+        files = os.listdir(os.path.join('models', 'vision', 'experiments', FLAGS.model_id))
         files = [f for f in files if f[-7:] == '.params']
         if len(files) > 0:
             files = sorted(files, reverse=True)  # put latest model first
             model_name = files[0]
             start_epoch = int(model_name.split('.')[0]) + 1
-            model.load_parameters(os.path.join('models', FLAGS.model_id, model_name), ctx=ctx)
-            logging.info('Loaded model params: {}'.format(os.path.join('models', FLAGS.model_id, model_name)))
+            model.load_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, model_name), ctx=ctx)
+            logging.info('Loaded model params: {}'.format(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, model_name)))
 
     # Setup the optimiser
     trainer = gluon.Trainer(model.collect_params(), 'sgd',
@@ -328,9 +328,9 @@ def main(_argv):
 
     # model training complete, test it
     if FLAGS.temp_pool not in ['max', 'mean']:
-        mod_path = os.path.join('models', FLAGS.model_id)
+        mod_path = os.path.join('models', 'vision', 'experiments', FLAGS.model_id)
     else:
-        mod_path = os.path.join('models', FLAGS.feats_model)
+        mod_path = os.path.join('models', 'vision', 'experiments', FLAGS.feats_model)
     best_score = -1
     best_epoch = -1
     with open(os.path.join(mod_path, 'scores.txt'), 'r') as f:
@@ -485,7 +485,7 @@ def train_model(model, train_set, train_data, metrics, val_set, val_data, val_me
                                          scalar_value=float(res[1]),
                                          global_step=(epoch * len(train_data)))
                     if res[0] == 'AVG_NB_f1':
-                        with open(os.path.join('models', FLAGS.model_id, 'scores.txt'), 'a') as f:
+                        with open(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, 'scores.txt'), 'a') as f:
                             f.write(str(epoch)+'\t'+str(float(res[1]))+'\n')
 
                 metric.reset()
@@ -494,7 +494,7 @@ def train_model(model, train_set, train_data, metrics, val_set, val_data, val_me
 
             logging.info(str_)
 
-            model.save_parameters(os.path.join('models', FLAGS.model_id, "{:04d}.params".format(epoch)))
+            model.save_parameters(os.path.join('models', 'vision', 'experiments', FLAGS.model_id, "{:04d}.params".format(epoch)))
 
     return model
 
