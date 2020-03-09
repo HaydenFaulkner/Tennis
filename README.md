@@ -73,7 +73,7 @@ dense temporal events.
 <h3 align='center'>Captioning</h3>
 <p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
 <p align="center">These models are trained with <a href="train_gnmt.py"><code>train_gnmt.py</code></a> and evaluated with <a href="evaluate_gnmt.py"><code>evaluate_gnmt.py</code></a></p>
-<p align="center">The table below shows some example generated captions on the test split, the underline marks errors:</p>
+<p align="center">The table below shows some example generated captions on the test split, the underline marks errors. <code>03</code> represents the point in the GIF at the top of this page.</p>
 <p align="center"><img src="img/cap_gen_examples.svg"></p>
 
 

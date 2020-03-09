@@ -11,23 +11,37 @@
 
 
 ```bash
-$ python evaluate.py --model_id 0006 --backbone DenseNet121
+python evaluate.py --model_id 0006 --backbone DenseNet121
 ```
 
 <p align="center"><img src="../img/densenet.svg"></p>
+
+
+<p align="center">.......</p>
+<h3 align="center">Two Stream</h3>
+<p align="center">The two-stream model (with ID <code>0010</code>) utilises two <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> CNNs, one for flow and one for RGB. The model can be evaluated with</p>
+
+```bash
+python evaluate.py --model_id 0010 --backbone DenseNet121 --flow twos
+```
+
+<p align="center">.......</p>
+<h3 align="center">R(2+1)D</h3>
+<p align="center"><b>Coming Soon</b></p>
+
 
 <p align="center">.......</p>
 <h3 align="center">Temporal Pooling</h3>
 <p align="center">The temporal pooling model (with ID <code>0028</code>) utilises the pretrained framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture (<code>0006</code>), and uses temporal <b>max</b> pooling. It can be evaluated with</p>
 
 ```bash
-$ python evaluate.py --model_id 0028 --backbone DenseNet121 --temp_pool mean --window 15 --backbone_from_id 0006 --feats_model 0006
+python evaluate.py --model_id 0028 --backbone DenseNet121 --temp_pool mean --window 15 --backbone_from_id 0006 --feats_model 0006
 ```
 
 <p align="center"> by specifying <code>--feats_model 0006</code> the model is expecting to read pre-extracted features from <code>\data\features\$model_id$\</code>. These features can be extracted by running something like the following</p>
 
 ```bash
-$ python evaluate.py --model_id 0006 --backbone DenseNet121 --save_feats
+python evaluate.py --model_id 0006 --backbone DenseNet121 --save_feats
 ```
 
 <p align="center">.......</p>
@@ -35,21 +49,19 @@ $ python evaluate.py --model_id 0006 --backbone DenseNet121 --save_feats
 <p align="center">The CNN-RNN model (with ID <code>0042</code>) utilises the pretrained framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture (<code>0006</code>), this can be evaluated with</p>
 
 ```bash
-$ python evaluate.py --model_id 0042 --backbone DenseNet121 --temp_pool gru --window 30 --backbone_from_id 0006 --feats_model 0006 --freeze_backbone
+python evaluate.py --model_id 0042 --backbone DenseNet121 --temp_pool gru --window 30 --backbone_from_id 0006 --feats_model 0006 --freeze_backbone
 ```
 
 <p align="center"><img src="../img/cnnrnn.svg"></p>
 
-
-<p align="center">.......</p>
-<h3 align="center">Two Stream</h3>
-<p align="center", color="red">TODO</p>
-
-
-<p align="center">.......</p>
-<h3 align="center">R(2+1)D</h3>
-<p align="center", color="red">TODO</p>
-
 <h2></h2>
 <h2 align="center">Captioning</h2>
-<p align="center", color="red">TODO</p>
+<p align="center">The CNN-RNN captioning model (with ID <code>0102</code>) utilises the pretrained framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture (<code>0006</code>), and expects the features to be pre-extracted (see Temporal Pooling above). This can be evaluated with</p>
+
+```bash
+python evaluate_gnmt.py --model_id 0102 --num_hidden 256 --backbone_from_id 0006 --feats_model 0006
+```
+
+<p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
+
+<p align="center"><b>TODO add figure post math addition</b></p>
