@@ -8,6 +8,7 @@ A Tennis dataset and models for event detection & commentary generation. Discuss
 <p align="center"><b>NOTE: </b>The results in the paper were with old <a href="https://keras.io/">Keras</a> models, new results are
 with <a href="https://mxnet.apache.org/">MXNet and Gluon</a> models.</p>
 
+<p align="center"><img src="img/tennis.gif"></p>
 
 <h2 align='center'></h2>
 <h2 align='center'>The Dataset</h2>
