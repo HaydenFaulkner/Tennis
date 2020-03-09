@@ -8,18 +8,36 @@
 <h2 align="center">Vision</h2>
 <h3 align="center">Framewise CNN</h3>
 <p align="center">The first model (with ID <code>0006</code>) and basis for many other experiments was a framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture, this can be evaluated with</p>
-<p align="center"><code>$ python evaluate.py --model_id 0006 --backbone DenseNet121</code></p>
+
+
+```bash
+$ python evaluate.py --model_id 0006 --backbone DenseNet121
+```
+
 <p align="center"><img src="../img/densenet.svg"></p>
 
 <p align="center">.......</p>
 <h3 align="center">Temporal Pooling</h3>
-<p align="center", color="red">TODO</p>
+<p align="center">The temporal pooling model (with ID <code>0028</code>) utilises the pretrained framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture (<code>0006</code>), and uses temporal <b>max</b> pooling. It can be evaluated with</p>
 
+```bash
+$ python evaluate.py --model_id 0028 --backbone DenseNet121 --temp_pool mean --window 15 --backbone_from_id 0006 --feats_model 0006
+```
+
+<p align="center"> by specifying <code>--feats_model 0006</code> the model is expecting to read pre-extracted features from <code>\data\features\$model_id$\</code>. These features can be extracted by running something like the following</p>
+
+```bash
+$ python evaluate.py --model_id 0006 --backbone DenseNet121 --save_feats
+```
 
 <p align="center">.......</p>
 <h3 align="center">CNN - RNN</h3>
 <p align="center">The CNN-RNN model (with ID <code>0042</code>) utilises the pretrained framewise <a href="https://arxiv.org/pdf/1608.06993.pdf">DenseNet-121</a> architecture (<code>0006</code>), this can be evaluated with</p>
-<p align="center"><code>$ python evaluate.py --model_id 0042 --backbone DenseNet121 --temp_pool gru --window 30 --backbone_from_id 0006 --feats_model 0006 --freeze_backbone</code></p>
+
+```bash
+$ python evaluate.py --model_id 0042 --backbone DenseNet121 --temp_pool gru --window 30 --backbone_from_id 0006 --feats_model 0006 --freeze_backbone
+```
+
 <p align="center"><img src="../img/cnnrnn.svg"></p>
 
 
