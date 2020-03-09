@@ -11,7 +11,7 @@ COLOURS = ((148, 148, 148),
            (255, 214, 148), (235, 131, 154), (162, 147, 255), (145, 235, 223), (208, 255, 145))
 
 
-def visualise_events(dataset, results, video_path, gt=None):
+def visualise_events(dataset, results, video_path, gt=None, max=-1):
     banner_height = 75
     gt_height = 0
     pred_border = 4
@@ -22,6 +22,9 @@ def visualise_events(dataset, results, video_path, gt=None):
 
     classes = dataset.classes
     order = sorted(list(results.keys()))
+
+    if max > 0:
+        order = order[:min(len(order), max)]
 
     height, width, _ = cv2.imread(order[0]).shape
 

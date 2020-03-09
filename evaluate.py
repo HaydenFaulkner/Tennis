@@ -74,9 +74,6 @@ flags.DEFINE_string('flow', '',
 flags.DEFINE_string('temp_pool', None,
                     'mean, max or gru.')
 
-flags.DEFINE_bool('results_cache', True,
-                  'Load results from cache if they exist')
-
 
 def main(_argv):
     FLAGS.every = [int(s) for s in FLAGS.every]
@@ -247,24 +244,8 @@ def main(_argv):
         model = TemporalPooling(model, pool=FLAGS.temp_pool, num_classes=0, feats=FLAGS.feats_model!=None)
 
     tic = time.time()
-    results_path = os.path.join(os.path.join('models', 'vision', 'experiments', 'results.pkl'))
-    gts_path = os.path.join(os.path.join('models', 'vision', 'experiments', 'gts.pkl'))
-    if os.path.exists(gts_path) and FLAGS.results_cache:
-        with open(gts_path, 'rb') as f:
-            gts = pkl.load(f)
-    else:
-        gts = None
 
-    if os.path.exists(results_path) and FLAGS.results_cache:
-        with open(results_path, 'rb') as f:
-            results = pkl.load(f)
-    else:
-        results, gts = evaluate_model(model, test_data, test_set, test_metrics, ctx)
-
-        with open(results_path, 'wb') as f:
-            pkl.dump(results, f, protocol=pkl.HIGHEST_PROTOCOL)
-        with open(gts_path, 'wb') as f:
-            pkl.dump(gts, f, protocol=pkl.HIGHEST_PROTOCOL)
+    results, gts = evaluate_model(model, test_data, test_set, test_metrics, ctx)
 
     str_ = 'Test set:'
     for i in range(len(test_set.classes)):
@@ -286,7 +267,7 @@ def main(_argv):
     print(str_)
 
     if FLAGS.vis:
-        visualise_events(test_set, results, video_path=os.path.join('models', 'vision', 'experiments', 'results.mp4'), gt=gts)
+        visualise_events(test_set, results, video_path=os.path.join('models', 'vision', 'experiments', FLAGS.model_id, 'results.mp4'), gt=gts)
 
 
 # Testing/Validation function
