@@ -35,7 +35,7 @@ dense temporal events.
 <h3 align='center'>Data Downloading and Pre-processing</h3>
 <p align="center">See <a href="data">data</a> for download and organisation information.</p>
 
-<p align="center">Once you have JSON annotation files from the annotator, you can run: <a href="utils/annotations/preprocess.py"><code>utils/annotations/preprocess.py</code></a> to perform pre-processing on the annotations. <b>Alternatively</b> you can download our annotations .tar.gz (<a href="data">see data</a>)</p>
+<p align="center">Once you have JSON annotation files from the annotator, you can run: <a href="utils/annotations/preprocess.py"><code>utils/annotations/preprocess.py</code></a> to perform pre-processing on the annotations, <b>OR</b> you can just download from my <a href="data">Google Drive</a></p>
 
 
 <p align="center">.......</p>
