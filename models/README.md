@@ -27,7 +27,13 @@ python evaluate.py --model_id 0010 --backbone DenseNet121 --flow twos
 
 <p align="center">.......</p>
 <h3 align="center">R(2+1)D</h3>
-<p align="center"><b>Coming Soon</b></p>
+<p align="center">The 3D CNN (with ID <code>0031</code>) utilises the a <a href="https://arxiv.org/pdf/1711.11248.pdf">R(2+1)D</a> architecture and can be evaluated with</p>
+
+```bash
+python evaluate.py --model_id 0031 --backbone rdnet --window 8 --data_shape 224
+```
+
+<p align="center">The CNN is fine-tuned from pre-training on <a href="https://deepmind.com/research/open-source/kinetics">Kinetics</a> and only uses input images of 224 by 224 due to memory constraints</p>
 
 
 <p align="center">.......</p>
@@ -64,4 +70,4 @@ python evaluate_gnmt.py --model_id 0102 --num_hidden 256 --backbone_from_id 0006
 
 <p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
 
-<p align="center"><b>TODO add figure post math addition</b></p>
+<p align="center"><img src="../img/tennis_cap.svg"></p>
