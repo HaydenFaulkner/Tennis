@@ -70,7 +70,7 @@ dense temporal events.
 <p align="center"><b>TODO: add table on R(2+1)D finish</b></p>
 
 <p align="center">Below is a video of the CNN-RNN model on the 02 test set. This can be generated using <code>--vis</code> when running <a href="evaluate.py"><code>evaluate.py</code></a></p>
-<p align="center"><b>Embed YouTube Video</b></p>
+<p align="center"><iframe width="560" height="315" src="https://www.youtube.com/embed/bXQNcZacioA" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></p>
 
 <p align="center">.......</p>
 <h3 align='center'>Captioning</h3>
