@@ -1,7 +1,7 @@
 <h1 align="center">Models</h1>
 <p align="center">A selection of the best models are available for <a href="https://drive.google.com/open?id=1vODBn10jtQ_MEpxdKXLlG6h0j0JchTBD">download from my Google Drive</a>. After downloading simply store the pre-trained model directories in either the <a href="vision/experiments"><code>vision/experiments</code></a> or <a href="captioning/experiments"><code>captioning/experiments</code></a> directory.</p>
 <p align="center">A summary of the models and their results is below</p>
-<p align="center"><img src="img/tennis_summary.svg"></p>
+<p align="center"><img src="../img/tennis_summary.svg"></p>
 
 
 <h2></h2>
