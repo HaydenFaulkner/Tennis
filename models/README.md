@@ -68,6 +68,8 @@ python evaluate.py --model_id 0042 --backbone DenseNet121 --temp_pool gru --wind
 python evaluate_gnmt.py --model_id 0102 --num_hidden 256 --backbone_from_id 0006 --feats_model 0006
 ```
 
+<p align="center"><img src="../img/tennis_cap.svg"></p>
+
 <p align="center"><b>NOTE: </b>The captioning scripts require the <a href="https://github.com/Maluuba/nlg-eval">nlg-eval</a> package. Please install prior as recommended by thier README</p>
 
-<p align="center"><img src="../img/tennis_cap.svg"></p>
+<p align="center"><img src="../img/tennis_cap_summary.svg"></p>

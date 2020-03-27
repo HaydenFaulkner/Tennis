@@ -78,7 +78,7 @@ dense temporal events.
 <p align="center">These models are trained with <a href="train_gnmt.py"><code>train_gnmt.py</code></a> and evaluated with <a href="evaluate_gnmt.py"><code>evaluate_gnmt.py</code></a></p>
 <p align="center">The table below shows some example generated captions on the test split, the underline marks errors. <code>03</code> represents the point in the GIF at the top of this page.</p>
 <p align="center"><img src="img/cap_gen_examples.svg"></p>
-
+<p align="center"><img src="img/tennis_cap_summary.svg"></p>
 
 
 <h2 align='center'></h2>
