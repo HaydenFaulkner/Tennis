@@ -67,7 +67,7 @@ dense temporal events.
 <p align="center">Features can be extracted using <code>--save_feats</code> argument, and will save them as .npy in <code>\data\features\$model_id$\</code> with the same structure as <code>\data\frames\</code>.</p>
 
 <p align="center">The table below shows the <a href="https://en.wikipedia.org/wiki/F1_score">F1 scores</a> per class on the test set for some of the different models</p>
-<p align="center"><b>TODO: add table on R(2+1)D finish</b></p>
+<p align="center"><img src="img/tennis_summary.svg"></p>
 
 <p align="center">Below is a video of the CNN-RNN model on the 02 test set. This can be generated using <code>--vis</code> when running <a href="evaluate.py"><code>evaluate.py</code></a></p>
 <p align="center"><a href="https://www.youtube.com/embed/bXQNcZacioA">YouTube video of results</a></p>
