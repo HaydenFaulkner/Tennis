@@ -1,7 +1,7 @@
 <h1 align="center">Tennis</h1>
 <p align="center">
 A Tennis dataset and models for event detection & commentary generation. Discussed in:</p>
-<p align="center"><a href="http://hf.id.au/papers/DICTA17_Tennis.pdf">"TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"</a>
+<p align="center"><a href="https://hayden.faulkner.codes/pdfs/DICTA17_Tennis.pdf">"TenniSet: A Dataset for Dense Fine-Grained Event Recognition, Localisation and Description"</a>
 </p>
 
 
